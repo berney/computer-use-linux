@@ -1039,6 +1039,8 @@ impl ComputerUseLinux {
     async fn dispatch_click(&self, mut params: ClickParams) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        // Test hook for tests/mcp_http_listen.rs; release builds never read it.
+        #[cfg(debug_assertions)]
         if let Ok(ms) = std::env::var("CUL_INPUT_LOCK_HOLD_MS") {
             if let Ok(ms) = ms.parse::<u64>() {
                 tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
