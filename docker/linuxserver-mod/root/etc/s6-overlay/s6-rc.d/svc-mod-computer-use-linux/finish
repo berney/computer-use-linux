@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv sh
+if [ -s /run/s6/container_environment/COMPUTER_USE_LINUX_MCP_DISABLED ]; then
+  exit 125
+fi
+exit 0

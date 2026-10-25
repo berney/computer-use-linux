@@ -1,0 +1,31 @@
+#!/usr/bin/with-contenv bash
+
+write_if_unset() {
+  local key="$1"
+  local value="$2"
+  local path="/run/s6/container_environment/${key}"
+  if [ -z "${!key}" ] && [ ! -s "${path}" ]; then
+    printf '%s' "${value}" > "${path}"
+  fi
+}
+
+write_if_unset PIXELFLUX_CU 5000
+if [ -z "${PIXELFLUX_CU_TOKEN}" ] && [ ! -s /run/s6/container_environment/PIXELFLUX_CU_TOKEN ]; then
+  printf '%s' "$(openssl rand -hex 32)" > /run/s6/container_environment/PIXELFLUX_CU_TOKEN
+fi
+write_if_unset QT_ACCESSIBILITY 1
+write_if_unset QT_LINUX_ACCESSIBILITY_ALWAYS_ON 1
+write_if_unset GTK_MODULES gail:atk-bridge
+write_if_unset COMPUTER_USE_LINUX_INDICATOR 0
+if [ -z "${DBUS_SESSION_BUS_ADDRESS}" ] && [ ! -s /run/s6/container_environment/DBUS_SESSION_BUS_ADDRESS ]; then
+  install -d -o abc -g abc /tmp/computer-use-linux-bus
+  addr=$(s6-setuidgid abc dbus-daemon --session --fork --print-address=1 --address=unix:path=/tmp/computer-use-linux-bus/bus)
+  printf '%s' "${addr}" > /run/s6/container_environment/DBUS_SESSION_BUS_ADDRESS
+fi
+
+
+if [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN}" ] && [ ! -s /run/s6/container_environment/COMPUTER_USE_LINUX_MCP_TOKEN ]; then
+  echo "computer-use-linux: COMPUTER_USE_LINUX_MCP_TOKEN is not set; MCP server disabled"
+  mkdir -p /run/s6/container_environment
+  printf '1' > /run/s6/container_environment/COMPUTER_USE_LINUX_MCP_DISABLED
+fi

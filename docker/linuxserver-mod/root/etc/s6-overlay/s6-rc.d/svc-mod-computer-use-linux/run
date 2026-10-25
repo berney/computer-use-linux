@@ -1,0 +1,66 @@
+#!/usr/bin/with-contenv bash
+
+if [ -n "${COMPUTER_USE_LINUX_MCP_DISABLED}" ] || [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN}" ]; then
+  echo "computer-use-linux: COMPUTER_USE_LINUX_MCP_TOKEN is not set; MCP server disabled"
+  s6-svc -Od .
+  exit 0
+fi
+
+compositor=""
+for _ in $(seq 1 120); do
+  for candidate in $(pgrep -x kwin_wayland || true) $(pgrep -x labwc || true); do
+    owner=$(ps -o user= -p "${candidate}" | tr -d ' ')
+    if [ "${owner}" = "abc" ]; then
+      compositor="${candidate}"
+      break 2
+    fi
+  done
+  sleep 0.5
+done
+if [ -z "${compositor}" ]; then
+  echo "computer-use-linux: no abc-owned kwin_wayland or labwc"
+  exit 1
+fi
+
+while IFS= read -r item; do
+  key="${item%%=*}"
+  value="${item#*=}"
+  case "${key}" in
+    DBUS_SESSION_BUS_ADDRESS | WAYLAND_DISPLAY | XDG_RUNTIME_DIR | DISPLAY)
+      export "${key}=${value}"
+      printf '%s' "${value}" > "/run/s6/container_environment/${key}"
+      ;;
+  esac
+done < <(s6-setuidgid abc sh -c "tr '\\0' '\\n' < /proc/${compositor}/environ")
+if [ -n "${XDG_RUNTIME_DIR}" ] && [ -S "${XDG_RUNTIME_DIR}/wayland-0" ]; then
+  export WAYLAND_DISPLAY=wayland-0
+  printf '%s' wayland-0 > /run/s6/container_environment/WAYLAND_DISPLAY
+fi
+
+
+s6-setuidgid abc dbus-send --session --dest=org.a11y.Bus --type=method_call \
+  /org/a11y/bus org.freedesktop.DBus.Properties.Set \
+  string:org.a11y.Status string:IsEnabled variant:boolean:true || true
+
+comm=$(s6-setuidgid abc sh -c "tr '\\0' '\\n' < /proc/${compositor}/comm")
+if [ "${comm}" = "labwc" ]; then
+  if ! s6-setuidgid abc dbus-send --session --print-reply --dest=org.freedesktop.DBus \
+    /org/freedesktop/DBus org.freedesktop.DBus.NameHasOwner \
+    string:org.a11y.atspi.Registry 2>/dev/null | grep -q 'boolean true'; then
+    registry=/usr/libexec/at-spi2-registryd
+    [ -x "${registry}" ] || registry=/usr/lib/at-spi2/at-spi2-registryd
+    if [ -x "${registry}" ]; then
+      s6-setuidgid abc "${registry}" &
+    fi
+  fi
+fi
+
+(
+  while kill -0 "${compositor}" 2>/dev/null; do
+    sleep 1
+  done
+  kill $$ 2>/dev/null || true
+) &
+
+exec s6-setuidgid abc /usr/local/bin/computer-use-linux mcp \
+  --listen "${COMPUTER_USE_LINUX_MCP_LISTEN:-0.0.0.0:5200}"
