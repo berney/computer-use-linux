@@ -139,7 +139,7 @@ Change: `computer-use-linux mcp --listen <addr:port>` serves the same MCP server
 - Plain HTTP; TLS is out of scope (see Transport security decision).
 - stdio stays the default when `--listen` is absent.
 - One server state shared by all HTTP sessions, so the existing input lock still serialises desktop actions.
-- The on-screen indicator takes its agent name from the most recent session's `clientInfo`, my call; the mod turns the indicator off by default anyway (`COMPUTER_USE_LINUX_INDICATOR=0`), since nobody watches these desktops locally.
+- The on-screen indicator takes its agent name from the most recent session's `clientInfo`, my call.
 
 Acceptance:
 
@@ -173,6 +173,8 @@ Packaging only; it lives in Berne's fork and is not expected to go upstream.
   - a oneshot init (s6-rc, before `svc-de`) that, unless already set, writes `PIXELFLUX_CU=5000` and a random `PIXELFLUX_CU_TOKEN`, plus the accessibility variables (`QT_ACCESSIBILITY`, `QT_LINUX_ACCESSIBILITY_ALWAYS_ON`, `GTK_MODULES`), into `/run/s6/container_environment/`, so no `PELORUS=true` is needed;
   - a longrun `svc-computer-use-linux` that waits for the compositor, takes the session bus address, `WAYLAND_DISPLAY` and `XDG_RUNTIME_DIR` from the compositor process's environment, makes sure the accessibility bus is enabled (and the registry running on labwc), then `exec`s `computer-use-linux mcp --listen` as `abc`; it exits when the session goes away so s6 restarts it.
 - Configuration through environment: `COMPUTER_USE_LINUX_MCP_TOKEN` (required), `COMPUTER_USE_LINUX_MCP_LISTEN` (default `0.0.0.0:5200`, my call).
+- The on-screen indicator is off by default in the mod and opt-in with `COMPUTER_USE_LINUX_INDICATOR=1` in the container's environment (Berne's request); the service passes the variable through, and the mod ships the `computer-use-linux-indicator` binary (static, next to the main one) so opting in works.
+  Acceptance: with `COMPUTER_USE_LINUX_INDICATOR=1`, a click shows the overlay in the webtop (KWin) and the chrome image (labwc) as seen through the Selkies web view, and screenshots still do not contain it; without the variable, no indicator process starts.
 - A README section with a compose example for a stock image (`DOCKER_MODS`) and a Dockerfile example for burp-selkies.
 
 Acceptance:
