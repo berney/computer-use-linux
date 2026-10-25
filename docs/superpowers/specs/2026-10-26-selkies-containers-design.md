@@ -52,6 +52,22 @@ The tests below used a static build of the clone at that time; whether it alread
 | Typed text                    | KDE clipboard paste: works in KCalc; in Konsole sends Ctrl+V, which readline treats as quoted-insert (`^M^M`, text lost)                                                          | Untested                                                         |
 | Transport                     | stdio only (`server.serve(rmcp::transport::stdio())`, `src/server.rs`)                                                                                                            | same                                                             |
 
+## Results (2026-10-26)
+
+Integration branch `berney/integration` after merging paste, scale, pixelflux, HTTP listen, labwc windows, and the linuxserver mod. Live checks used `computer-use-linux-mod:dev` copied onto the desktop image, not a `DOCKER_MODS` pull.
+
+| Check | Result |
+| --- | --- |
+| Webtop, no `PELORUS` | `tools/list` and `get_app_state` on `127.0.0.1:5202`. Screenshot source `pixelflux`. |
+| Chrome, no `PELORUS` | Window list backend `labwc`, Chrome window present. |
+| burp-selkies overlay | `tools/list` on `127.0.0.1:5205`. |
+| No token | Log line `MCP server disabled`. Binary does not stay running. |
+| Compositor restart | Killing `labwc` brought the MCP service back. |
+| `doctor` | Runs from the static-pie binary. `can_build_accessibility_tree` is true when the toolkit bridge env is set and the bus is up. No `libxkbcommon` line, because these sessions are not GNOME. |
+
+Not run: `DOCKER_MODS` (the linuxserver downloader only fetches HTTPS registries) and `COMPUTER_USE_LINUX_INDICATOR=1`.
+
+
 Relevant facts about the containers:
 
 - pixelflux, the Selkies display server, has its own computer-use HTTP server: `POST /computer-use` on `127.0.0.1:$PIXELFLUX_CU`, bearer token `$PIXELFLUX_CU_TOKEN`, actions `screenshot`, `left_click`, `right_click`, `double_click`, `middle_click`, `triple_click`, `mouse_move`, `left_mouse_down`, `left_mouse_up`, `left_click_drag`, `scroll`, `key`, `hold_key`, `type`, `cursor_position`, `wait`, `zoom` (docs: `~/co/git/linuxserver/docker-documentation/docs/selkies/components/pixelflux.md`; request shape mirrored by Pelorus `src/rest.py` `ControlRequest`).
