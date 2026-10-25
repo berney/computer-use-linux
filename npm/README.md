@@ -152,6 +152,7 @@ does not yet forward the flag or include the tool in its catalog.
   desktop coordinates.
 
 ## Input & coordinate contracts
+- **HTTP MCP**: `computer-use-linux mcp --listen 127.0.0.1:5200` needs `COMPUTER_USE_LINUX_MCP_TOKEN`. Clients send `Authorization: Bearer <token>`. The port is plain HTTP; keep it on loopback or a private network.
 
 - **Element targets**: `click`, `scroll`, `perform_action`, and `set_value`
   accept an optional app target (`pid`, `window_id`, `app_id`, `wm_class`,
