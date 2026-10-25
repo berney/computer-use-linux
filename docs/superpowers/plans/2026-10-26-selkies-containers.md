@@ -38,6 +38,23 @@ Input and screenshots inside Selkies go through pixelflux's loopback computer-us
 
 ---
 
+## Branch 0: `chore/edition-2024`
+
+Berne's request: move to the newest Rust edition if it works; if it breaks builds or tests, keep the old one to minimise unnecessary changes.
+
+### Task 0.1: Try Rust edition 2024
+
+**Files:**
+
+- Modify: `Cargo.toml` (`edition = "2021"` → `"2024"`), and whatever `cargo fix --edition` changes.
+
+**Interfaces:** none produced; later branches start from `main`, not from this branch.
+
+- [ ] **Step 1:** In `.worktrees/edition-2024`, run `cargo fix --edition --allow-dirty --all-targets --locked`, then set `edition = "2024"` in `Cargo.toml`.
+- [ ] **Step 2:** Run the full gate list from Global Constraints, plus the static musl build command.
+- [ ] **Step 3:** If every gate passes and the diff is mechanical (edition migrations, `cargo fmt` under the 2024 style edition), commit `chore: move to Rust edition 2024`, and notify.
+  If any gate fails in a way that needs more than mechanical migration edits, discard the branch (`git worktree remove --force`, `git branch -D`), record why in the ledger, and notify `chore/edition-2024: kept edition 2021 (<reason>)`.
+
 ## Branch 1: `fix/kde-terminal-paste`
 
 ### Task 1.1: Keep the terminal paste chord for non-text focus
