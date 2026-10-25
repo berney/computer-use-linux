@@ -30,6 +30,10 @@ while IFS= read -r item; do
       export "${key}=${value}"
       printf '%s' "${value}" > "/run/s6/container_environment/${key}"
       ;;
+    # Session identity picks the KWin/labwc paths; export only, so other services keep theirs.
+    XDG_CURRENT_DESKTOP | XDG_SESSION_TYPE | XDG_SESSION_DESKTOP | DESKTOP_SESSION)
+      export "${key}=${value}"
+      ;;
   esac
 done < <(s6-setuidgid abc sh -c "tr '\\0' '\\n' < /proc/${compositor}/environ")
 if [ -n "${XDG_RUNTIME_DIR}" ] && [ -S "${XDG_RUNTIME_DIR}/wayland-0" ]; then
