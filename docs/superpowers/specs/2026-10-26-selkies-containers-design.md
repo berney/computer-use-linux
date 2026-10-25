@@ -58,14 +58,16 @@ Integration branch `berney/integration` after merging paste, scale, pixelflux, H
 
 | Check | Result |
 | --- | --- |
-| Webtop, no `PELORUS` | `tools/list` and `get_app_state` on `127.0.0.1:5202`. Screenshot source `pixelflux`. |
-| Chrome, no `PELORUS` | Window list backend `labwc`, Chrome window present. |
+| Webtop, no `PELORUS` | `tools/list` and `get_app_state` on `127.0.0.1:5202`. Screenshot source `pixelflux`. Alt+F1, typed `dolphin`, Return through pixelflux opened Dolphin, listed by `kwin`. |
+| Webtop element pointer click | Double-click on Dolphin's `Documents` item: KWin mapped it, pixelflux sent it, the window became `Documents — Dolphin`. Scale 1 only. |
+| Chrome, no `PELORUS` | Window list backend `labwc`, Chrome window present. `press_key PageDown` goes through pixelflux. `doctor`: screenshot `pixelflux`, window control `labwc`, no blockers. |
 | burp-selkies overlay | `tools/list` on `127.0.0.1:5205`. |
 | No token | Log line `MCP server disabled`. Binary does not stay running. |
 | Compositor restart | Killing `labwc` brought the MCP service back. |
 | `doctor` | Runs from the static-pie binary. `can_build_accessibility_tree` is true when the toolkit bridge env is set and the bus is up. No `libxkbcommon` line, because these sessions are not GNOME. |
+| `scripts/mcp_safety_check.py` | Passes against the static binary in `python:3-slim`. On a desktop host its `doctor` call exceeds the script's 5 s limit, also on `main`. |
 
-Not run: `DOCKER_MODS` (the linuxserver downloader only fetches HTTPS registries) and `COMPUTER_USE_LINUX_INDICATOR=1`.
+Not run: element clicks at scale 2 (needs a HiDPI browser viewing the desktop), `DOCKER_MODS` (the linuxserver downloader only fetches HTTPS registries), and `COMPUTER_USE_LINUX_INDICATOR=1`.
 
 
 Relevant facts about the containers:
