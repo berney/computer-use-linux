@@ -17,7 +17,18 @@ docker bake linuxserver-mod-tar   # docker/linuxserver-mod/computer-use-linux.ta
 ```
 
 The image is `linux/amd64` only.
-Each checkout (worktree) gets its own cargo cache, keyed by its path, so a rebuild that changes no Rust source takes seconds.
+
+Building more than one checkout (git worktrees, other clones)?
+Give each its own builder, which gives it its own cargo cache:
+
+```sh
+docker buildx create --name cul-integration --driver docker-container
+docker bake --builder cul-integration
+```
+
+Checkouts that share a builder share its cargo `target/` cache.
+Cargo decides what to rebuild from file times, so it can skip recompiling and ship the binary built from the other checkout.
+`docker bake --no-cache` rebuilds everything from scratch.
 
 ## Use it
 
