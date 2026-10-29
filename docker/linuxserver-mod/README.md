@@ -17,6 +17,7 @@ docker bake linuxserver-mod-tar   # dist/computer-use-linux.tar, for sideloading
 ```
 
 The image is `linux/amd64` only.
+Each checkout (worktree) gets its own cargo cache, keyed by its path, so a rebuild that changes no Rust source takes seconds.
 
 ## Use it
 
