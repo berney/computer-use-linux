@@ -20,8 +20,9 @@ target "linuxserver-mod" {
 }
 
 # The same files as a tarball for DOCKER_MODS_SIDELOAD: mount it at /mods/computer-use-linux.tar.
+# It lands next to the Dockerfile because some buildx versions will not create a missing export directory.
 target "linuxserver-mod-tar" {
   inherits = ["linuxserver-mod"]
   tags     = []
-  output   = ["type=tar,dest=dist/computer-use-linux.tar"]
+  output   = ["type=tar,dest=docker/linuxserver-mod/computer-use-linux.tar"]
 }

@@ -13,7 +13,7 @@ From the repository root:
 
 ```sh
 docker bake                       # image computer-use-linux-mod:dev
-docker bake linuxserver-mod-tar   # dist/computer-use-linux.tar, for sideloading
+docker bake linuxserver-mod-tar   # docker/linuxserver-mod/computer-use-linux.tar, for sideloading
 ```
 
 The image is `linux/amd64` only.
@@ -36,7 +36,7 @@ services:
       DOCKER_MODS_SIDELOAD: "true"
       COMPUTER_USE_LINUX_MCP_TOKEN: change-me
     volumes:
-      - ./dist/computer-use-linux.tar:/mods/computer-use-linux.tar:ro
+      - ./docker/linuxserver-mod/computer-use-linux.tar:/mods/computer-use-linux.tar:ro
     ports:
       - 127.0.0.1:3001:3001
       - 127.0.0.1:5200:5200
