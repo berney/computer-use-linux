@@ -7,6 +7,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     <<-EOF
 	apk add --no-cache musl-dev
+	# The target cache is shared across checkouts and cargo trusts mtimes, so rebuild this crate every time.
+	cargo clean --release -p computer-use-linux
 	cargo build --release --locked --bin computer-use-linux --bin computer-use-linux-indicator
 	mkdir -p /out/usr/local/bin
 	cp target/release/computer-use-linux target/release/computer-use-linux-indicator /out/usr/local/bin/
