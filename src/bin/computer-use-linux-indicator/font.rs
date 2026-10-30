@@ -4,9 +4,9 @@
 use std::process::Command;
 
 use skrifa::{
+    FontRef, GlyphId, MetadataProvider,
     instance::{LocationRef, Size},
     outline::{DrawSettings, OutlinePen},
-    FontRef, GlyphId, MetadataProvider,
 };
 use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Transform};
 

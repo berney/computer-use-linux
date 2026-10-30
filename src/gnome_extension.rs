@@ -2,7 +2,7 @@ use crate::command_runner;
 use crate::diagnostics::hydrate_session_bus_env;
 use crate::identity;
 use crate::windowing::backends::gnome::list_extension_windows;
-use crate::windows::{window_permission_hint, WindowInfo};
+use crate::windows::{WindowInfo, window_permission_hint};
 use schemars::JsonSchema;
 use serde::Serialize;
 use std::{

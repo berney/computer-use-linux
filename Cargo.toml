@@ -1,7 +1,7 @@
 [package]
 name = "computer-use-linux"
 version = "0.7.32"
-edition = "2021"
+edition = "2024"
 authors = ["Avi Fenesh <avifenesh@users.noreply.github.com>"]
 license = "MIT"
 description = "Native Linux desktop control over MCP and CLI — semantic AT-SPI accessibility trees, multi-compositor window targeting (GNOME, KDE/KWin, Hyprland, niri, COSMIC, i3, X11), bounded screenshots, Wayland/X11 input, and an on-screen agent activity indicator."

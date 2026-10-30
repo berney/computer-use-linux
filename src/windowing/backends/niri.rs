@@ -11,7 +11,7 @@ use crate::command_runner;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::{WindowBounds, WindowInfo};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -843,11 +843,10 @@ mod tests {
                 "{reply}"
             );
         }
-        assert!(ensure_socket_action_succeeded(
-            "focus",
-            r#"{"Err":"cannot focus: no such window"}"#
-        )
-        .is_err());
+        assert!(
+            ensure_socket_action_succeeded("focus", r#"{"Err":"cannot focus: no such window"}"#)
+                .is_err()
+        );
     }
 
     #[test]

@@ -19,14 +19,14 @@ use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::{WindowBounds, WindowInfo};
 use crate::x11_display::{
-    frame_origin, is_native_x11_session as is_x11_session, with_x11_display, X11_QUERY_TIMEOUT,
+    X11_QUERY_TIMEOUT, frame_origin, is_native_x11_session as is_x11_session, with_x11_display,
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::env;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use tokio::process::Command as TokioCommand;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 pub const X11_BACKEND: &str = "x11";
 const GEOMETRY_VERIFY_ATTEMPTS: usize = 11;
@@ -188,11 +188,7 @@ pub async fn move_window(window_id: u64, x: i32, y: i32) -> Result<String> {
 /// coordinate is silently ignored. Map it to -2 so the window actually moves
 /// (a 1px difference at the screen edge is harmless).
 fn wmctrl_move_coord(value: i32) -> i32 {
-    if value == -1 {
-        -2
-    } else {
-        value
-    }
+    if value == -1 { -2 } else { value }
 }
 
 pub async fn resize_window(window_id: u64, width: i32, height: i32) -> Result<String> {

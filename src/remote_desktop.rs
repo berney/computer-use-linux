@@ -3,7 +3,7 @@ use crate::{
     diagnostics::hydrate_session_bus_env,
     ei_input::{DeviceKind, EiInput, Input},
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures_util::StreamExt;
 use std::{
     collections::HashMap,
@@ -13,8 +13,8 @@ use std::{
     os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, OnceLock,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::Duration,
 };
@@ -22,9 +22,9 @@ use tokio::process::Command;
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
 use xkeysym::Keysym;
 use zbus::{
+    Connection, Proxy,
     proxy::SignalStream,
     zvariant::{OwnedObjectPath, OwnedValue, Value},
-    Connection, Proxy,
 };
 
 const PORTAL_DESKTOP_SERVICE: &str = "org.freedesktop.portal.Desktop";
@@ -268,8 +268,8 @@ async fn kwin_desktop_layout() -> Option<Vec<LogicalMonitor>> {
 }
 
 async fn logical_desktop_layout() -> Option<Vec<LogicalMonitor>> {
-    if env_token_contains("XDG_CURRENT_DESKTOP", "gnome") {
-        if let Some(layout) = crate::windowing::backends::gnome::extension_monitor_layout()
+    if env_token_contains("XDG_CURRENT_DESKTOP", "gnome")
+        && let Some(layout) = crate::windowing::backends::gnome::extension_monitor_layout()
             .await
             .ok()
             .filter(|monitors| !monitors.is_empty())
@@ -285,27 +285,24 @@ async fn logical_desktop_layout() -> Option<Vec<LogicalMonitor>> {
                     })
                     .collect::<Vec<_>>()
             })
-        {
-            if layout.iter().all(|monitor| {
-                monitor.width > 0
-                    && monitor.height > 0
-                    && monitor.scale.is_finite()
-                    && monitor.scale >= 0.0
-            }) {
-                return Some(layout);
-            }
-        }
+        && layout.iter().all(|monitor| {
+            monitor.width > 0
+                && monitor.height > 0
+                && monitor.scale.is_finite()
+                && monitor.scale >= 0.0
+        })
+    {
+        return Some(layout);
     }
 
     if env_token_contains("XDG_CURRENT_DESKTOP", "hyprland") {
         let mut command = Command::new("hyprctl");
         command.args(["monitors", "-j"]);
-        if let Ok(output) = command_runner::output(command, "query Hyprland monitor layout").await {
-            if output.status.success() {
-                if let Some(layout) = parse_hyprland_monitor_layout(&output.stdout) {
-                    return Some(layout);
-                }
-            }
+        if let Ok(output) = command_runner::output(command, "query Hyprland monitor layout").await
+            && output.status.success()
+            && let Some(layout) = parse_hyprland_monitor_layout(&output.stdout)
+        {
+            return Some(layout);
         }
     }
 
@@ -314,49 +311,47 @@ async fn logical_desktop_layout() -> Option<Vec<LogicalMonitor>> {
     {
         let mut command = Command::new("kscreen-doctor");
         command.arg("-j");
-        if let Ok(output) = command_runner::output(command, "query KDE monitor layout").await {
-            if output.status.success() {
-                if let Some(layout) = parse_kscreen_monitor_layout(&output.stdout) {
-                    return Some(layout);
-                }
-            }
+        if let Ok(output) = command_runner::output(command, "query KDE monitor layout").await
+            && output.status.success()
+            && let Some(layout) = parse_kscreen_monitor_layout(&output.stdout)
+        {
+            return Some(layout);
         }
     }
 
     if env_token_contains("XDG_CURRENT_DESKTOP", "sway") || std::env::var_os("SWAYSOCK").is_some() {
         let mut command = Command::new("swaymsg");
         command.args(["-t", "get_outputs", "-r"]);
-        if let Ok(output) = command_runner::output(command, "query Sway output layout").await {
-            if output.status.success() {
-                if let Some(layout) = parse_sway_monitor_layout(&output.stdout) {
-                    return Some(layout);
-                }
-            }
+        if let Ok(output) = command_runner::output(command, "query Sway output layout").await
+            && output.status.success()
+            && let Some(layout) = parse_sway_monitor_layout(&output.stdout)
+        {
+            return Some(layout);
         }
     }
 
-    if env_token_contains("XDG_CURRENT_DESKTOP", "cosmic") {
-        if let Ok(monitors) = crate::cosmic_helper::monitor_layout().await {
-            let layout = monitors
-                .into_iter()
-                .map(|monitor| LogicalMonitor {
-                    x: monitor.x,
-                    y: monitor.y,
-                    width: monitor.width,
-                    height: monitor.height,
-                    scale: monitor.scale,
-                })
-                .collect::<Vec<_>>();
-            if !layout.is_empty()
-                && layout.iter().all(|monitor| {
-                    monitor.width > 0
-                        && monitor.height > 0
-                        && monitor.scale.is_finite()
-                        && monitor.scale > 0.0
-                })
-            {
-                return Some(layout);
-            }
+    if env_token_contains("XDG_CURRENT_DESKTOP", "cosmic")
+        && let Ok(monitors) = crate::cosmic_helper::monitor_layout().await
+    {
+        let layout = monitors
+            .into_iter()
+            .map(|monitor| LogicalMonitor {
+                x: monitor.x,
+                y: monitor.y,
+                width: monitor.width,
+                height: monitor.height,
+                scale: monitor.scale,
+            })
+            .collect::<Vec<_>>();
+        if !layout.is_empty()
+            && layout.iter().all(|monitor| {
+                monitor.width > 0
+                    && monitor.height > 0
+                    && monitor.scale.is_finite()
+                    && monitor.scale > 0.0
+            })
+        {
+            return Some(layout);
         }
     }
 
@@ -1542,10 +1537,10 @@ fn ensure_private_dir(path: &Path) -> io::Result<()> {
         }
         Ok(_) => {}
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            if let Some(parent) = path.parent() {
-                if !parent.as_os_str().is_empty() {
-                    fs::create_dir_all(parent)?;
-                }
+            if let Some(parent) = path.parent()
+                && !parent.as_os_str().is_empty()
+            {
+                fs::create_dir_all(parent)?;
             }
             let mut builder = fs::DirBuilder::new();
             builder.mode(0o700);
@@ -1944,10 +1939,10 @@ async fn cosmic_eis_input(
                     | "org.freedesktop.portal.Error.NotSupported"
             ) =>
         {
-            return Ok(None)
+            return Ok(None);
         }
         Err(error) => {
-            return Err(error).context("RemoteDesktop ConnectToEIS failed; no input was sent")
+            return Err(error).context("RemoteDesktop ConnectToEIS failed; no input was sent");
         }
     };
     let fd: std::os::fd::OwnedFd = fd.into();
@@ -2248,10 +2243,10 @@ fn assign_stream_pixel_scales(streams: &mut [PortalStream], layout: Option<&[Log
         };
         if let Some(monitor) = layout.iter().find(|monitor| {
             (monitor.x, monitor.y, monitor.width, monitor.height) == (x, y, width, height)
-        }) {
-            if monitor.scale.is_finite() && monitor.scale > 0.0 {
-                stream.pixel_scale = monitor.scale;
-            }
+        }) && monitor.scale.is_finite()
+            && monitor.scale > 0.0
+        {
+            stream.pixel_scale = monitor.scale;
         }
     }
 }
@@ -2545,13 +2540,15 @@ mod tests {
 
     #[test]
     fn monitor_parsers_reject_partial_active_layouts() {
-        assert!(parse_hyprland_monitor_layout(
-            br#"[
+        assert!(
+            parse_hyprland_monitor_layout(
+                br#"[
                 {"x":0,"y":0,"width":1920,"height":1080,"scale":1.0},
                 {"x":1920,"y":0,"width":1920,"height":1080,"scale":0.0}
             ]"#,
-        )
-        .is_none());
+            )
+            .is_none()
+        );
         assert!(parse_kscreen_monitor_layout(
             br#"{"outputs":[
                 {"pos":{"x":0,"y":0},"size":{"width":1920,"height":1080},"scale":1.0,"connected":true,"enabled":true},
@@ -2559,21 +2556,25 @@ mod tests {
             ]}"#,
         )
         .is_none());
-        assert!(parse_sway_monitor_layout(
-            br#"[
+        assert!(
+            parse_sway_monitor_layout(
+                br#"[
                 {"active":true,"rect":{"x":0,"y":0,"width":1920,"height":1080},"scale":1.0},
                 {"active":true,"rect":{"x":1920,"y":0,"width":1920,"height":1080},"scale":0.0}
             ]"#,
-        )
-        .is_none());
-        assert!(parse_sway_monitor_layout(
-            br#"[{"rect":{"x":0,"y":0,"width":1920,"height":1080},"scale":1.0}]"#,
-        )
-        .is_none());
-        assert!(parse_xrandr_monitor_layout(
-            "Monitors: 2\n 0: +*eDP-1 1920/344x1080/194+0+0 eDP-1\n"
-        )
-        .is_none());
+            )
+            .is_none()
+        );
+        assert!(
+            parse_sway_monitor_layout(
+                br#"[{"rect":{"x":0,"y":0,"width":1920,"height":1080},"scale":1.0}]"#,
+            )
+            .is_none()
+        );
+        assert!(
+            parse_xrandr_monitor_layout("Monitors: 2\n 0: +*eDP-1 1920/344x1080/194+0+0 eDP-1\n")
+                .is_none()
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use crate::diagnostics::hydrate_session_bus_env;
-use crate::x11_display::{is_native_x11_session, with_x11_display, X11_CAPTURE_TIMEOUT};
-use anyhow::{anyhow, bail, Context, Result};
-use base64::{engine::general_purpose::STANDARD, Engine};
+use crate::x11_display::{X11_CAPTURE_TIMEOUT, is_native_x11_session, with_x11_display};
+use anyhow::{Context, Result, anyhow, bail};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use futures_util::StreamExt;
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
@@ -18,10 +18,10 @@ use std::{
 };
 use tokio::process::Command;
 use zbus::{
+    MatchRule, MessageStream, Proxy,
     message::{Message, Type as MessageType},
     names::{BusName, OwnedUniqueName, WellKnownName},
     zvariant::{OwnedObjectPath, OwnedValue, Value},
-    MatchRule, MessageStream, Proxy,
 };
 
 const PORTAL_DESKTOP_SERVICE: &str = "org.freedesktop.portal.Desktop";
@@ -184,10 +184,10 @@ impl OwnedScreenshotCleanup {
                         if !metadata.is_file() || metadata.uid() != unsafe { libc::geteuid() } {
                             return false;
                         }
-                        if let Some(pictures) = &request.pictures {
-                            if path.parent() == Some(pictures.path.as_path()) {
-                                return pictures.contains_new_path(path);
-                            }
+                        if let Some(pictures) = &request.pictures
+                            && path.parent() == Some(pictures.path.as_path())
+                        {
+                            return pictures.contains_new_path(path);
                         }
                         // Unknown locations need proof of creation after the request.
                         // Missing birth times preserve the file.
@@ -219,13 +219,13 @@ impl Drop for OwnedScreenshotCleanup {
             return;
         };
         let portal_file = self.portal_file.take();
-        if matches!(strategy, ScreenshotCleanup::PortalPath { .. }) {
-            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-                // A queued read can be cancelled on the single-thread runtime.
-                // Keep the pinned file alive and unlink on a blocking worker.
-                runtime.spawn_blocking(move || cleanup_screenshot_path(strategy, portal_file));
-                return;
-            }
+        if matches!(strategy, ScreenshotCleanup::PortalPath { .. })
+            && let Ok(runtime) = tokio::runtime::Handle::try_current()
+        {
+            // A queued read can be cancelled on the single-thread runtime.
+            // Keep the pinned file alive and unlink on a blocking worker.
+            runtime.spawn_blocking(move || cleanup_screenshot_path(strategy, portal_file));
+            return;
         }
         cleanup_screenshot_path(strategy, portal_file);
     }
@@ -247,12 +247,11 @@ fn cleanup_screenshot_path(strategy: ScreenshotCleanup, portal_file: Option<File
         #[cfg(test)]
         ScreenshotCleanup::Preserve => None,
     };
-    if let Some(path) = path {
-        if let Err(error) = fs::remove_file(path) {
-            if error.kind() != std::io::ErrorKind::NotFound {
-                eprintln!("Failed to remove screenshot capture file: {error}");
-            }
-        }
+    if let Some(path) = path
+        && let Err(error) = fs::remove_file(path)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        eprintln!("Failed to remove screenshot capture file: {error}");
     }
 }
 
@@ -985,14 +984,14 @@ fn percent_decode(value: &str) -> String {
     let mut index = 0;
 
     while index < bytes.len() {
-        if bytes[index] == b'%' && index + 2 < bytes.len() {
-            if let Ok(hex) = std::str::from_utf8(&bytes[index + 1..index + 3]) {
-                if let Ok(byte) = u8::from_str_radix(hex, 16) {
-                    decoded.push(byte);
-                    index += 3;
-                    continue;
-                }
-            }
+        if bytes[index] == b'%'
+            && index + 2 < bytes.len()
+            && let Ok(hex) = std::str::from_utf8(&bytes[index + 1..index + 3])
+            && let Ok(byte) = u8::from_str_radix(hex, 16)
+        {
+            decoded.push(byte);
+            index += 3;
+            continue;
         }
 
         decoded.push(bytes[index]);
@@ -1138,20 +1137,24 @@ mod tests {
     #[test]
     fn forced_backend_reads_env_override() {
         // Only this test touches SCREENSHOT_BACKEND_ENV, so no cross-test race.
-        std::env::set_var(SCREENSHOT_BACKEND_ENV, "gnome-screenshot");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var(SCREENSHOT_BACKEND_ENV, "gnome-screenshot") };
         assert_eq!(
             forced_backend().unwrap(),
             Some(ScreenshotBackend::GnomeScreenshot)
         );
 
-        std::env::set_var(SCREENSHOT_BACKEND_ENV, "   ");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var(SCREENSHOT_BACKEND_ENV, "   ") };
         assert_eq!(forced_backend().unwrap(), None);
 
-        std::env::set_var(SCREENSHOT_BACKEND_ENV, "bogus");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var(SCREENSHOT_BACKEND_ENV, "bogus") };
         let error = forced_backend().unwrap_err();
         assert!(error.to_string().contains("not a recognized backend"));
 
-        std::env::remove_var(SCREENSHOT_BACKEND_ENV);
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var(SCREENSHOT_BACKEND_ENV) };
         assert_eq!(forced_backend().unwrap(), None);
     }
 
@@ -1279,9 +1282,11 @@ mod tests {
             "owned-test-capture",
             ScreenshotCleanup::DeletePath(path.clone()),
         ));
-        assert!(tokio::time::timeout(Duration::from_millis(20), &mut queued)
-            .await
-            .is_err());
+        assert!(
+            tokio::time::timeout(Duration::from_millis(20), &mut queued)
+                .await
+                .is_err()
+        );
         queued.abort();
         assert!(queued.await.unwrap_err().is_cancelled());
         release.send(()).unwrap();
@@ -1442,10 +1447,12 @@ mod tests {
     fn png_dimensions_reject_decompression_bomb_dimensions() {
         let png = valid_png(u32::MAX, u32::MAX);
 
-        assert!(png_dimensions(&png)
-            .unwrap_err()
-            .to_string()
-            .contains("pixel source limit"));
+        assert!(
+            png_dimensions(&png)
+                .unwrap_err()
+                .to_string()
+                .contains("pixel source limit")
+        );
     }
 
     #[tokio::test]

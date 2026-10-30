@@ -1,6 +1,6 @@
 //! A portal-owned EIS connection. Input starts only after the requested devices
 //! have resumed, rather than treating the transport handshake as device readiness.
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use futures_util::StreamExt;
 use reis::{
     ei,
@@ -244,15 +244,15 @@ fn emit(input: Input, connection: &reis::event::Connection, devices: &[InputDevi
         if !state.active {
             continue;
         }
-        if let Input::Motion(x, y) = input {
-            if !device.regions().iter().any(|region| {
+        if let Input::Motion(x, y) = input
+            && !device.regions().iter().any(|region| {
                 x >= region.x as f64
                     && y >= region.y as f64
                     && x < region.x as f64 + region.width as f64
                     && y < region.y as f64 + region.height as f64
-            }) {
-                continue;
-            }
+            })
+        {
+            continue;
         }
         match input {
             Input::Keysym(key, state) => {
@@ -327,10 +327,9 @@ fn emit(input: Input, connection: &reis::event::Connection, devices: &[InputDevi
 mod tests {
     use super::*;
     use reis::{
-        eis,
+        PendingRequestResult, eis,
         handshake::EisHandshaker,
         request::{EisRequest, EisRequestConverter},
-        PendingRequestResult,
     };
     use std::{os::fd::AsRawFd, time::Instant};
 

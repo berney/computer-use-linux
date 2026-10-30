@@ -2,7 +2,7 @@ use crate::cosmic_helper;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::WindowInfo;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 pub const COSMIC_WAYLAND_BACKEND: &str = "cosmic-wayland";
 

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use cosmic_protocols::{
     toplevel_info::v1::client::{zcosmic_toplevel_handle_v1, zcosmic_toplevel_info_v1},
     toplevel_management::v1::client::zcosmic_toplevel_manager_v1,
@@ -8,10 +8,9 @@ use std::collections::{HashMap, HashSet};
 use std::os::unix::io::{AsFd, AsRawFd};
 use std::time::{Duration, Instant};
 use wayland_client::{
-    event_created_child,
-    globals::{registry_queue_init, GlobalListContents},
+    Connection, Dispatch, Proxy, QueueHandle, WEnum, event_created_child,
+    globals::{GlobalListContents, registry_queue_init},
     protocol::{wl_output, wl_registry, wl_seat},
-    Connection, Dispatch, Proxy, QueueHandle, WEnum,
 };
 use wayland_protocols::ext::foreign_toplevel_list::v1::client::{
     ext_foreign_toplevel_handle_v1, ext_foreign_toplevel_list_v1,
@@ -222,7 +221,9 @@ impl Command {
                 println!("{HELP}");
                 std::process::exit(0);
             }
-            _ => bail!("unknown arguments. Expected one of: probe, list-windows, focused-window, monitor-layout, activate-window --window-id <id>"),
+            _ => bail!(
+                "unknown arguments. Expected one of: probe, list-windows, focused-window, monitor-layout, activate-window --window-id <id>"
+            ),
         }
     }
 }
@@ -960,10 +961,10 @@ impl Dispatch<wl_output::WlOutput, ()> for AppData {
         _: &QueueHandle<Self>,
     ) {
         // xdg-output v3 uses wl_output.done as its atomic state boundary.
-        if matches!(event, wl_output::Event::Done) {
-            if let Some(position) = app_data.outputs.get_mut(&output.id().protocol_id()) {
-                position.done = true;
-            }
+        if matches!(event, wl_output::Event::Done)
+            && let Some(position) = app_data.outputs.get_mut(&output.id().protocol_id())
+        {
+            position.done = true;
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::WindowInfo;
 use crate::windowing::wayland_session::peer_pid;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
 use std::os::fd::AsRawFd;
 use std::path::PathBuf;
@@ -203,10 +203,10 @@ fn decode_reply(buf: &[u8]) -> Result<String> {
     // Selkies can cut a multibyte title at its byte buffer limit. Repair that
     // string exactly as ipc_string_with_char does, preserving the other windows.
     let text = String::from_utf8_lossy(buf).into_owned();
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
-        if let Some(error) = value.get("error").and_then(|item| item.as_str()) {
-            return Err(anyhow!(error.to_string()));
-        }
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text)
+        && let Some(error) = value.get("error").and_then(|item| item.as_str())
+    {
+        return Err(anyhow!(error.to_string()));
     }
     Ok(text)
 }
@@ -277,13 +277,13 @@ fn ipc_matches(value: Option<&str>, expected: Option<&str>) -> bool {
 
 mod foreign {
     use super::WindowInfo;
-    use anyhow::{bail, Context, Result};
+    use anyhow::{Context, Result, bail};
     use std::collections::HashMap;
     use std::os::fd::{AsFd, AsRawFd};
     use std::time::Instant;
     use wayland_client::protocol::{wl_callback, wl_registry, wl_seat};
     use wayland_client::{
-        event_created_child, Connection, Dispatch, EventQueue, Proxy, QueueHandle,
+        Connection, Dispatch, EventQueue, Proxy, QueueHandle, event_created_child,
     };
     use wayland_protocols_wlr::foreign_toplevel::v1::client::{
         zwlr_foreign_toplevel_handle_v1, zwlr_foreign_toplevel_manager_v1,

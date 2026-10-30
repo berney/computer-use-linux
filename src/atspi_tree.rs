@@ -1,6 +1,7 @@
 use crate::diagnostics::hydrate_session_bus_env;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use atspi::{
+    CoordType, ObjectRef, ObjectRefOwned, StateSet,
     proxy::{
         accessible::{AccessibleProxy, ObjectRefExt},
         action::ActionProxy,
@@ -8,16 +9,15 @@ use atspi::{
         proxy_ext::{Proxies, ProxyExt},
         text::TextProxy,
     },
-    CoordType, ObjectRef, ObjectRefOwned, StateSet,
 };
 // Direct dependency (p2p feature off) — see Cargo.toml for why we bypass
 // atspi's "connection" re-export.
 use atspi_connection::AccessibilityConnection;
-use futures_util::{stream, StreamExt};
+use futures_util::{StreamExt, stream};
 use schemars::JsonSchema;
 use serde::Serialize;
 use std::{collections::VecDeque, future::Future, time::Duration};
-use tokio::time::{sleep_until, timeout, timeout_at, Instant};
+use tokio::time::{Instant, sleep_until, timeout, timeout_at};
 use zbus::{
     fdo::DBusProxy,
     names::{BusName, UniqueName},
@@ -624,25 +624,26 @@ async fn focused_element_probe(
         }
         let remaining = traversal.remaining_capacity();
         if depth - depth_base < FOCUS_PROBE_MAX_DEPTH && remaining > 0 {
-            if let Ok(batch) =
-                children_up_to(&proxy, remaining, &mut remaining_traversal_reads).await
-            {
-                incomplete |= batch.incomplete;
-                // An exhausted shared read budget takes children_up_to's
-                // I/O-free path (attempted 0, incomplete false), so the node's
-                // own child count has to say whether children went unread.
-                // With budget left, attempted 0 just means a leaf: no read.
-                if batch.attempted == 0 && remaining_traversal_reads == 0 && !incomplete {
-                    incomplete = proxy.child_count().await.map_or(true, |count| count > 0);
+            match children_up_to(&proxy, remaining, &mut remaining_traversal_reads).await {
+                Ok(batch) => {
+                    incomplete |= batch.incomplete;
+                    // An exhausted shared read budget takes children_up_to's
+                    // I/O-free path (attempted 0, incomplete false), so the node's
+                    // own child count has to say whether children went unread.
+                    // With budget left, attempted 0 just means a leaf: no read.
+                    if batch.attempted == 0 && remaining_traversal_reads == 0 && !incomplete {
+                        incomplete = proxy.child_count().await.map_or(true, |count| count > 0);
+                    }
+                    traversal.enqueue(
+                        batch
+                            .items
+                            .into_iter()
+                            .map(|child| (child, depth + 1, child_menu)),
+                    );
                 }
-                traversal.enqueue(
-                    batch
-                        .items
-                        .into_iter()
-                        .map(|child| (child, depth + 1, child_menu)),
-                );
-            } else {
-                incomplete = true;
+                _ => {
+                    incomplete = true;
+                }
             }
         } else if !incomplete {
             // Depth or node cap: any child this node reports goes unread. One
@@ -778,18 +779,16 @@ async fn set_element_value_with_proxies(
     proxies: &Proxies<'_>,
     value: &str,
 ) -> Result<ValueSetInvocation> {
-    if let Ok(numeric_value) = value.parse::<f64>() {
-        if let Ok(value_proxy) = proxies.value().await {
-            value_proxy
-                .set_current_value(numeric_value)
-                .await
-                .with_context(|| {
-                    format!("failed to set AT-SPI numeric value to {numeric_value}")
-                })?;
-            return Ok(ValueSetInvocation::Numeric {
-                value: numeric_value,
-            });
-        }
+    if let Ok(numeric_value) = value.parse::<f64>()
+        && let Ok(value_proxy) = proxies.value().await
+    {
+        value_proxy
+            .set_current_value(numeric_value)
+            .await
+            .with_context(|| format!("failed to set AT-SPI numeric value to {numeric_value}"))?;
+        return Ok(ValueSetInvocation::Numeric {
+            value: numeric_value,
+        });
     }
 
     if let Ok(editable_text) = proxies.editable_text().await {
@@ -1190,10 +1189,10 @@ async fn read_node(
 pub(crate) const UNKNOWN_ROLE: &str = "unknown";
 
 async fn role_name(proxy: &AccessibleProxy<'_>) -> String {
-    if let Ok(role) = proxy.get_role_name().await {
-        if !role.trim().is_empty() {
-            return role;
-        }
+    if let Ok(role) = proxy.get_role_name().await
+        && !role.trim().is_empty()
+    {
+        return role;
     }
     proxy
         .get_role()
@@ -1400,10 +1399,10 @@ fn select_action_index(actions: &[atspi::Action], requested_action: Option<&str>
             return Ok(index as i32);
         }
 
-        if let Ok(index) = requested_action.parse::<usize>() {
-            if index < actions.len() {
-                return Ok(index as i32);
-            }
+        if let Ok(index) = requested_action.parse::<usize>()
+            && index < actions.len()
+        {
+            return Ok(index as i32);
         }
 
         return Err(anyhow!(
@@ -1474,8 +1473,8 @@ mod tests {
         io::{BufRead, BufReader},
         process::{Child, Command, Stdio},
         sync::{
-            atomic::{AtomicUsize, Ordering},
             Arc, Mutex,
+            atomic::{AtomicUsize, Ordering},
         },
     };
 
@@ -2680,11 +2679,7 @@ mod tests {
                 let calls = calls.clone();
                 async move {
                     calls.lock().unwrap().push(index);
-                    if index == 1 {
-                        Err(())
-                    } else {
-                        Ok(index)
-                    }
+                    if index == 1 { Err(()) } else { Ok(index) }
                 }
             }
         })

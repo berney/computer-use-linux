@@ -1,6 +1,6 @@
 use crate::windowing::backends::{cosmic, gnome, hyprland, i3, kwin, labwc, niri, x11};
 use crate::windowing::types::WindowInfo;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::future::Future;
 
 pub use cosmic::COSMIC_WAYLAND_BACKEND;
@@ -293,7 +293,7 @@ pub async fn focused_window_for_backend(backend: &str) -> Result<Option<WindowIn
         backend => {
             return Err(anyhow!(
                 "Unsupported window backend for focus query: {backend}"
-            ))
+            ));
         }
     };
     Ok(windows.into_iter().find(|window| window.focused))
@@ -301,9 +301,7 @@ pub async fn focused_window_for_backend(backend: &str) -> Result<Option<WindowIn
 
 pub async fn move_window(window: &WindowInfo, x: i32, y: i32) -> Result<String> {
     match window.backend.as_str() {
-        GNOME_SHELL_EXTENSION_BACKEND => {
-            gnome::move_extension_window(window.window_id, x, y).await
-        }
+        GNOME_SHELL_EXTENSION_BACKEND => gnome::move_extension_window(window.window_id, x, y).await,
         X11_BACKEND => x11::move_window(window.window_id, x, y).await,
         backend => Err(anyhow!(
             "Window backend {backend} cannot move windows; move_window needs the computer-use-linux GNOME Shell extension or a generic X11/EWMH session."
@@ -442,12 +440,14 @@ mod tests {
     fn records_backend_failures_with_registry_labels() {
         let mut misses = Misses::default();
 
-        assert!(usable_backend_windows(
-            BackendKind::Kwin,
-            Err(anyhow!("loadScript failed")),
-            &mut misses,
-        )
-        .is_none());
+        assert!(
+            usable_backend_windows(
+                BackendKind::Kwin,
+                Err(anyhow!("loadScript failed")),
+                &mut misses,
+            )
+            .is_none()
+        );
 
         assert_eq!(misses.notes, vec!["KWin failed: loadScript failed"]);
     }

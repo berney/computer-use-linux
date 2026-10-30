@@ -6,11 +6,11 @@
 //! needs a fresh report: `verbose: true`, a failed action, a setup tool, an
 //! observation that contradicts the cached report, or an expired TTL.
 
-use crate::diagnostics::{doctor_report, DoctorReport};
+use crate::diagnostics::{DoctorReport, doctor_report};
 use std::{
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -86,13 +86,12 @@ impl<T: Clone + Send + 'static> DiagnosticsCache<T> {
         let mut entry = self.entry.lock().await;
         let generation = self.generation.load(Ordering::SeqCst);
         let now = Instant::now();
-        if !refresh {
-            if let Some(cached) = entry
+        if !refresh
+            && let Some(cached) = entry
                 .as_ref()
                 .filter(|cached| cached.is_fresh(generation, now, self.ttl))
-            {
-                return (cached.report.clone(), false);
-            }
+        {
+            return (cached.report.clone(), false);
         }
         let probe = Arc::clone(&self.probe);
         let report = tokio::task::spawn_blocking(move || probe())

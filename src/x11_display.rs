@@ -13,7 +13,7 @@
 //! Callers must gate on [`is_native_x11_session`] first, so XWayland under a
 //! Wayland compositor is never used.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use std::{
     env, io,
     net::{IpAddr, SocketAddr, TcpStream},
@@ -28,10 +28,10 @@ use x11rb::protocol::xproto::{
     AtomEnum, ChangeWindowAttributesAux, ConnectionExt as _, EventMask, ImageFormat, ImageOrder,
     VisualClass, Window,
 };
-use x11rb::protocol::{xkb, Event};
+use x11rb::protocol::{Event, xkb};
 use x11rb::{
     reexports::x11rb_protocol::{
-        parse_display::{parse_display, ConnectAddress},
+        parse_display::{ConnectAddress, parse_display},
         xauth::get_auth,
     },
     rust_connection::{DefaultStream, PollMode, RustConnection, Stream},
@@ -242,7 +242,9 @@ impl X11TypingGuard {
         // PointerRoot (1) is not a window: focus can follow pointer motion
         // without an observable focus event on the current target.
         if focus == 1 {
-            bail!("X11 keyboard monitoring does not support PointerRoot; input follows the window under the pointer");
+            bail!(
+                "X11 keyboard monitoring does not support PointerRoot; input follows the window under the pointer"
+            );
         }
         // GetInputFocus stays unchanged during an active keyboard grab. Core
         // focus events still report NotifyGrab/NotifyUngrab, including when
@@ -314,10 +316,14 @@ impl X11TypingGuard {
             }
         }
         if changed {
-            bail!("X11 keyboard layout changed during type_text; dispatched text may be substituted or missing. Inspect the target before submitting or retrying; do not retry blindly.");
+            bail!(
+                "X11 keyboard layout changed during type_text; dispatched text may be substituted or missing. Inspect the target before submitting or retrying; do not retry blindly."
+            );
         }
         if diverted {
-            bail!("X11 keyboard focus changed or was grabbed during type_text; some dispatched text may have been diverted or lost. Inspect the target before submitting or retrying; do not retry blindly.");
+            bail!(
+                "X11 keyboard focus changed or was grabbed during type_text; some dispatched text may have been diverted or lost. Inspect the target before submitting or retrying; do not retry blindly."
+            );
         }
         Ok(())
     }
@@ -625,8 +631,10 @@ mod tests {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let port = listener.local_addr().unwrap().port();
             assert!(port >= 6000);
-            env::set_var("DISPLAY", format!("127.0.0.1:{}", port - 6000));
-            env::set_var("XAUTHORITY", "/dev/null");
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { env::set_var("DISPLAY", format!("127.0.0.1:{}", port - 6000)) };
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { env::set_var("XAUTHORITY", "/dev/null") };
             let server = std::thread::spawn(move || {
                 for index in 0..6 {
                     let (mut peer, _) = listener.accept().unwrap();

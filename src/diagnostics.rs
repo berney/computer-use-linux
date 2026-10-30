@@ -462,23 +462,26 @@ pub fn hydrate_session_bus_env() {
     hydrate_desktop_env_from_process_tree();
     let systemd_discovery_succeeded = hydrate_desktop_env_from_systemd_user();
 
-    if env_var("XDG_RUNTIME_DIR").is_none() {
-        if let Some(runtime) = xdg_runtime_dir() {
-            if runtime.exists() {
-                env::set_var("XDG_RUNTIME_DIR", runtime);
-            }
-        }
+    if env_var("XDG_RUNTIME_DIR").is_none()
+        && let Some(runtime) = xdg_runtime_dir()
+        && runtime.exists()
+    {
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { env::set_var("XDG_RUNTIME_DIR", runtime) };
     }
 
-    if env_var("DBUS_SESSION_BUS_ADDRESS").is_none() {
-        if let Some(runtime) = xdg_runtime_dir() {
-            let bus = runtime.join("bus");
-            if bus.exists() {
+    if env_var("DBUS_SESSION_BUS_ADDRESS").is_none()
+        && let Some(runtime) = xdg_runtime_dir()
+    {
+        let bus = runtime.join("bus");
+        if bus.exists() {
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe {
                 env::set_var(
                     "DBUS_SESSION_BUS_ADDRESS",
                     format!("unix:path={}", bus.display()),
-                );
-            }
+                )
+            };
         }
     }
     let current = desktop_environment();
@@ -518,7 +521,8 @@ fn hydrate_common_command_path() {
         }
     }
     if let Ok(path) = env::join_paths(entries) {
-        env::set_var("PATH", path);
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { env::set_var("PATH", path) };
     }
 }
 
@@ -554,7 +558,8 @@ fn hydrate_desktop_env_from_map(process_env: &HashMap<String, String>) {
         .filter_map(|key| env_var(key).map(|value| ((*key).to_string(), value)))
         .collect();
     for (key, value) in desktop_env_hydration_updates(&current_env, process_env) {
-        env::set_var(key, value);
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { env::set_var(key, value) };
     }
 }
 
@@ -613,11 +618,11 @@ fn desktop_process_environments() -> Vec<HashMap<String, String>> {
         pid = parent_pid(&current_pid.to_string());
     }
 
-    if !visited_pids.contains(&1) && process_owner_matches_current_user(1) {
-        if let Some(process_env) = read_process_environ(1).filter(process_env_has_graphical_display)
-        {
-            environments.push(process_env);
-        }
+    if !visited_pids.contains(&1)
+        && process_owner_matches_current_user(1)
+        && let Some(process_env) = read_process_environ(1).filter(process_env_has_graphical_display)
+    {
+        environments.push(process_env);
     }
 
     environments
@@ -2009,9 +2014,11 @@ pub(crate) mod tests {
         let updates = desktop_env_hydration_updates(&current_env, &host_env);
 
         assert!(!updates.iter().any(|(key, _)| *key == "WAYLAND_DISPLAY"));
-        assert!(updates
-            .iter()
-            .any(|(key, value)| { *key == "XDG_CURRENT_DESKTOP" && value == "ubuntu:GNOME" }));
+        assert!(
+            updates
+                .iter()
+                .any(|(key, value)| { *key == "XDG_CURRENT_DESKTOP" && value == "ubuntu:GNOME" })
+        );
     }
 
     #[test]
@@ -2021,9 +2028,11 @@ pub(crate) mod tests {
 
         let updates = desktop_env_hydration_updates(&current_env, &host_env);
 
-        assert!(updates
-            .iter()
-            .any(|(key, value)| *key == "WAYLAND_DISPLAY" && value == "wayland-0"));
+        assert!(
+            updates
+                .iter()
+                .any(|(key, value)| *key == "WAYLAND_DISPLAY" && value == "wayland-0")
+        );
     }
 
     #[test]
@@ -2183,10 +2192,12 @@ pub(crate) mod tests {
             &input,
         );
         assert_eq!(capabilities.preferred.input.as_deref(), Some("portal"));
-        assert!(!capabilities
-            .input
-            .iter()
-            .any(|backend| backend == "abs_pointer"));
+        assert!(
+            !capabilities
+                .input
+                .iter()
+                .any(|backend| backend == "abs_pointer")
+        );
     }
 
     #[test]
@@ -2453,13 +2464,17 @@ pub(crate) mod tests {
 
         assert!(readiness.can_query_windows);
         assert!(!readiness.can_focus_windows);
-        assert!(readiness
-            .recommended_next_step
-            .contains("exact-focus window backend"));
-        assert!(readiness
-            .blockers
-            .iter()
-            .any(|blocker| blocker.contains("Exact window activation")));
+        assert!(
+            readiness
+                .recommended_next_step
+                .contains("exact-focus window backend")
+        );
+        assert!(
+            readiness
+                .blockers
+                .iter()
+                .any(|blocker| blocker.contains("Exact window activation"))
+        );
     }
 
     #[test]
@@ -2488,9 +2503,11 @@ pub(crate) mod tests {
             SCREENSHOT_PORTAL_METHODS,
         );
         assert!(!check.ok);
-        assert!(check
-            .detail
-            .contains("missing required methods: Screenshot"));
+        assert!(
+            check
+                .detail
+                .contains("missing required methods: Screenshot")
+        );
 
         let full = Check::ok(
             "NAME        TYPE     SIGNATURE RESULT/VALUE FLAGS\n.PickColor  method   sa{sv}    o            -\n.Screenshot method   sa{sv}    o            -",
@@ -2532,13 +2549,17 @@ pub(crate) mod tests {
             ScreenshotCaptureStatus::Unavailable
         );
         assert!(readiness.warnings.is_empty());
-        assert!(readiness
-            .blockers
-            .iter()
-            .any(|blocker| blocker.contains("No screenshot route was detected")));
-        assert!(readiness
-            .recommended_next_step
-            .contains("Enable a screenshot route"));
+        assert!(
+            readiness
+                .blockers
+                .iter()
+                .any(|blocker| blocker.contains("No screenshot route was detected"))
+        );
+        assert!(
+            readiness
+                .recommended_next_step
+                .contains("Enable a screenshot route")
+        );
         let capabilities = capability_map(&platform, &portals, &accessibility, &windowing, &input);
         assert!(capabilities.screenshot.is_empty());
         assert_eq!(capabilities.preferred.screenshot, None);
@@ -2652,13 +2673,17 @@ pub(crate) mod tests {
         );
 
         assert!(readiness.blockers.is_empty());
-        assert!(readiness
-            .recommended_next_step
-            .contains("AT-SPI tree support"));
+        assert!(
+            readiness
+                .recommended_next_step
+                .contains("AT-SPI tree support")
+        );
         assert!(readiness.recommended_next_step.contains("window targeting"));
-        assert!(!readiness
-            .recommended_next_step
-            .contains("GNOME window targeting"));
+        assert!(
+            !readiness
+                .recommended_next_step
+                .contains("GNOME window targeting")
+        );
     }
 
     #[test]
@@ -2701,10 +2726,12 @@ pub(crate) mod tests {
         let capabilities = capability_map(&platform, &portals, &accessibility, &windowing, &input);
         let readiness = readiness_report(&platform, &portals, &accessibility, &windowing, &input);
 
-        assert!(capabilities
-            .input
-            .iter()
-            .any(|backend| backend == "ydotool"));
+        assert!(
+            capabilities
+                .input
+                .iter()
+                .any(|backend| backend == "ydotool")
+        );
         assert!(readiness.can_send_development_input);
     }
 
@@ -2729,13 +2756,17 @@ pub(crate) mod tests {
         );
 
         assert!(!readiness.can_send_development_input);
-        assert!(readiness
-            .blockers
-            .iter()
-            .any(|blocker| blocker.contains("absolute pointer input")));
-        assert!(readiness
-            .recommended_next_step
-            .contains("keyboard-capable input backend"));
+        assert!(
+            readiness
+                .blockers
+                .iter()
+                .any(|blocker| blocker.contains("absolute pointer input"))
+        );
+        assert!(
+            readiness
+                .recommended_next_step
+                .contains("keyboard-capable input backend")
+        );
     }
 
     #[test]
@@ -2808,13 +2839,17 @@ pub(crate) mod tests {
         );
 
         assert!(!readiness.can_send_development_input);
-        assert!(readiness
-            .recommended_next_step
-            .contains("Enable a keyboard-capable input backend"));
-        assert!(readiness
-            .blockers
-            .iter()
-            .any(|blocker| blocker.contains("Development keyboard input is unavailable")));
+        assert!(
+            readiness
+                .recommended_next_step
+                .contains("Enable a keyboard-capable input backend")
+        );
+        assert!(
+            readiness
+                .blockers
+                .iter()
+                .any(|blocker| blocker.contains("Development keyboard input is unavailable"))
+        );
     }
 
     #[test]
@@ -2833,10 +2868,12 @@ pub(crate) mod tests {
         let capabilities = capability_map(&platform, &portals, &accessibility, &windowing, &input);
         let readiness = readiness_report(&platform, &portals, &accessibility, &windowing, &input);
 
-        assert!(!capabilities
-            .input
-            .iter()
-            .any(|backend| backend == "ydotool"));
+        assert!(
+            !capabilities
+                .input
+                .iter()
+                .any(|backend| backend == "ydotool")
+        );
         assert!(!readiness.can_send_development_input);
     }
 
@@ -2894,9 +2931,11 @@ pub(crate) mod tests {
             &input,
         );
 
-        assert!(readiness
-            .blockers
-            .iter()
-            .any(|blocker| blocker.contains("COSMIC Wayland window introspection")));
+        assert!(
+            readiness
+                .blockers
+                .iter()
+                .any(|blocker| blocker.contains("COSMIC Wayland window introspection"))
+        );
     }
 }

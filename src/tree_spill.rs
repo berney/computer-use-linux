@@ -17,8 +17,8 @@ use std::fs::{self, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use schemars::JsonSchema;
@@ -159,10 +159,10 @@ impl TreeSpiller {
 
     /// Remove files left by servers that are gone, or that are too old.
     pub(crate) fn sweep(&self) {
-        if let Some(dir) = &self.dir {
-            if private_dir(dir).is_ok() {
-                sweep(dir, std::process::id(), self.start);
-            }
+        if let Some(dir) = &self.dir
+            && private_dir(dir).is_ok()
+        {
+            sweep(dir, std::process::id(), self.start);
         }
     }
 }
