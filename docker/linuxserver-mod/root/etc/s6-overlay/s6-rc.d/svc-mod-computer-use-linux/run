@@ -36,9 +36,18 @@ while IFS= read -r item; do
       ;;
   esac
 done < <(s6-setuidgid abc sh -c "tr '\\0' '\\n' < /proc/${compositor}/environ")
-if [ -n "${XDG_RUNTIME_DIR}" ] && [ -S "${XDG_RUNTIME_DIR}/wayland-0" ]; then
-  export WAYLAND_DISPLAY=wayland-0
-  printf '%s' wayland-0 > /run/s6/container_environment/WAYLAND_DISPLAY
+# The compositor process exists before its session socket does (labwc took
+# ~110 ms on 30 Oct 2026), so wait for wayland-0 rather than test it once;
+# losing that race left the server and overlay on the outer pixelflux output.
+if [ -n "${XDG_RUNTIME_DIR}" ]; then
+  for _ in $(seq 1 50); do
+    if [ -S "${XDG_RUNTIME_DIR}/wayland-0" ]; then
+      export WAYLAND_DISPLAY=wayland-0
+      printf '%s' wayland-0 > /run/s6/container_environment/WAYLAND_DISPLAY
+      break
+    fi
+    sleep 0.1
+  done
 fi
 
 
