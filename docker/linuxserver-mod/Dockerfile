@@ -11,6 +11,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 	mkdir -p /out/usr/local/bin
 	cp target/release/computer-use-linux target/release/computer-use-linux-indicator /out/usr/local/bin/
 	cp -a docker/linuxserver-mod/root/. /out/
+	# COPY / / onto a base applies these modes to its /etc, so drop any restrictive checkout umask.
+	chmod -R a+rX,go-w /out
 EOF
 
 # One layer: DOCKER_MODS applies only the first layer of a mod image.
