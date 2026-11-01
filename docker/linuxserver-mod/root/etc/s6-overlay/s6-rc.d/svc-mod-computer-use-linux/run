@@ -36,20 +36,36 @@ while IFS= read -r item; do
       ;;
   esac
 done < <(s6-setuidgid abc sh -c "tr '\\0' '\\n' < /proc/${compositor}/environ")
-# The compositor process exists before its session socket does (labwc took
-# ~110 ms on 30 Oct 2026), so wait for wayland-0 rather than test it once;
-# losing that race left the server and overlay on the outer pixelflux output.
-if [ -n "${XDG_RUNTIME_DIR}" ]; then
-  for _ in $(seq 1 50); do
-    if [ -S "${XDG_RUNTIME_DIR}/wayland-0" ]; then
-      export WAYLAND_DISPLAY=wayland-0
-      printf '%s' wayland-0 > /run/s6/container_environment/WAYLAND_DISPLAY
-      break
-    fi
-    sleep 0.1
-  done
-fi
+# True once the compositor itself listens on $1. A stale socket file left in
+# /config/.XDG has no /proc/net/unix entry, and pixelflux's own wayland-N
+# belongs to another process. Reading /proc/<pid>/fd needs the owner, abc.
+compositor_listens_on() {
+  local inode
+  inode=$(awk -v path="$1" '$6 == "01" && $8 == path { print $7 }' /proc/net/unix)
+  [ -n "${inode}" ] || return 1
+  # shellcheck disable=SC2016 # the pid arrives as "$1", never spliced into the script
+  s6-setuidgid abc sh -c 'readlink /proc/"$1"/fd/* 2>/dev/null' sh "${compositor}" |
+    grep -Fqx "socket:[${inode}]"
+}
 
+# The compositor process exists before its session socket does (labwc took
+# ~110 ms on 30 Oct 2026); losing that race left the server and overlay on
+# the outer pixelflux output. Exiting lets s6 restart the service and retry.
+socket="${XDG_RUNTIME_DIR}/wayland-0"
+listening=""
+for _ in $(seq 1 50); do
+  if compositor_listens_on "${socket}"; then
+    listening=1
+    break
+  fi
+  sleep 0.1
+done
+if [ -z "${listening}" ]; then
+  echo "computer-use-linux: compositor ${compositor} is not listening on ${socket}"
+  exit 1
+fi
+export WAYLAND_DISPLAY=wayland-0
+printf '%s' wayland-0 > /run/s6/container_environment/WAYLAND_DISPLAY
 
 s6-setuidgid abc dbus-send --session --dest=org.a11y.Bus --type=method_call \
   /org/a11y/bus org.freedesktop.DBus.Properties.Set \
