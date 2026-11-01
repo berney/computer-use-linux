@@ -404,7 +404,7 @@ fn path_to_string(path: PathBuf) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::windows::{WindowBounds, GNOME_SHELL_EXTENSION_BACKEND};
+    use crate::windows::{GNOME_SHELL_EXTENSION_BACKEND, WindowBounds};
 
     fn terminal_window(window_id: u64, pid: u32) -> WindowInfo {
         WindowInfo {

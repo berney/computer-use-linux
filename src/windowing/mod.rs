@@ -23,11 +23,11 @@ pub use types::{WindowBounds, WindowFocusResult, WindowInfo, WindowTarget};
 #[cfg(test)]
 mod tests {
     use super::backends::gnome::window_from_properties;
-    use super::backends::hyprland::{parse_hyprland_clients, HYPRLAND_BACKEND};
-    use super::backends::i3::{parse_i3_tree, parse_xprop_pid, I3_BACKEND};
+    use super::backends::hyprland::{HYPRLAND_BACKEND, parse_hyprland_clients};
+    use super::backends::i3::{I3_BACKEND, parse_i3_tree, parse_xprop_pid};
     use super::registry::{
-        descriptors, list_note, COSMIC_WAYLAND_BACKEND, GNOME_SHELL_EXTENSION_BACKEND,
-        GNOME_SHELL_INTROSPECT_BACKEND,
+        COSMIC_WAYLAND_BACKEND, GNOME_SHELL_EXTENSION_BACKEND, GNOME_SHELL_INTROSPECT_BACKEND,
+        descriptors, list_note,
     };
     use super::target::{ensure_backend_can_focus_target, focused_in};
     use super::*;
@@ -148,45 +148,59 @@ mod tests {
     #[test]
     fn target_reports_when_any_selector_is_present() {
         assert!(!WindowTarget::default().has_target());
-        assert!(WindowTarget {
-            title: Some("Ghostty".to_string()),
-            ..Default::default()
-        }
-        .has_target());
-        assert!(WindowTarget {
-            tty: Some("/dev/pts/1".to_string()),
-            ..Default::default()
-        }
-        .has_target());
+        assert!(
+            WindowTarget {
+                title: Some("Ghostty".to_string()),
+                ..Default::default()
+            }
+            .has_target()
+        );
+        assert!(
+            WindowTarget {
+                tty: Some("/dev/pts/1".to_string()),
+                ..Default::default()
+            }
+            .has_target()
+        );
     }
 
     #[test]
     fn title_pid_and_window_id_targets_require_exact_focus() {
-        assert!(WindowTarget {
-            title: Some("Ghostty".to_string()),
-            ..Default::default()
-        }
-        .requires_exact_focus());
-        assert!(WindowTarget {
-            pid: Some(123),
-            ..Default::default()
-        }
-        .requires_exact_focus());
-        assert!(WindowTarget {
-            window_id: Some(123),
-            ..Default::default()
-        }
-        .requires_exact_focus());
-        assert!(WindowTarget {
-            terminal_command: Some("codex".to_string()),
-            ..Default::default()
-        }
-        .requires_exact_focus());
-        assert!(!WindowTarget {
-            app_id: Some("com.mitchellh.ghostty.desktop".to_string()),
-            ..Default::default()
-        }
-        .requires_exact_focus());
+        assert!(
+            WindowTarget {
+                title: Some("Ghostty".to_string()),
+                ..Default::default()
+            }
+            .requires_exact_focus()
+        );
+        assert!(
+            WindowTarget {
+                pid: Some(123),
+                ..Default::default()
+            }
+            .requires_exact_focus()
+        );
+        assert!(
+            WindowTarget {
+                window_id: Some(123),
+                ..Default::default()
+            }
+            .requires_exact_focus()
+        );
+        assert!(
+            WindowTarget {
+                terminal_command: Some("codex".to_string()),
+                ..Default::default()
+            }
+            .requires_exact_focus()
+        );
+        assert!(
+            !WindowTarget {
+                app_id: Some("com.mitchellh.ghostty.desktop".to_string()),
+                ..Default::default()
+            }
+            .requires_exact_focus()
+        );
     }
 
     #[test]
@@ -301,22 +315,26 @@ mod tests {
             "com.mitchellh.ghostty.desktop",
             "Ghostty",
         )];
-        assert!(resolve_window_target(
-            &ghostty,
-            &WindowTarget {
-                app_id: Some("ghostty".to_string()),
-                ..Default::default()
-            },
-        )
-        .is_ok());
-        assert!(resolve_window_target(
-            &ghostty,
-            &WindowTarget {
-                app_id: Some("desktop".to_string()),
-                ..Default::default()
-            },
-        )
-        .is_err());
+        assert!(
+            resolve_window_target(
+                &ghostty,
+                &WindowTarget {
+                    app_id: Some("ghostty".to_string()),
+                    ..Default::default()
+                },
+            )
+            .is_ok()
+        );
+        assert!(
+            resolve_window_target(
+                &ghostty,
+                &WindowTarget {
+                    app_id: Some("desktop".to_string()),
+                    ..Default::default()
+                },
+            )
+            .is_err()
+        );
     }
 
     #[test]

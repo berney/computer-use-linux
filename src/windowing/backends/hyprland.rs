@@ -2,7 +2,7 @@ use crate::command_runner;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::{WindowBounds, WindowInfo};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::fs;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
@@ -270,7 +270,7 @@ pub async fn send_key_events(
         let stream = match socket_connect().await {
             Ok(stream) => stream,
             Err(error) if delivered == 0 => {
-                return Err(error.context("No keys were sent: could not reach the Hyprland socket"))
+                return Err(error.context("No keys were sent: could not reach the Hyprland socket"));
             }
             Err(error) => bail!(
                 "Hyprland send_key_state stopped for {address}: {delivered} of {total} key presses were delivered, the rest were not sent. Inspect the target before retrying, and send only the remainder: {error:#}"
@@ -406,7 +406,9 @@ pub async fn capture_window(window_id: u64) -> Result<WindowCapture> {
     let stable_id = match client.get("stableId") {
         Some(serde_json::Value::String(id)) => id.clone(),
         Some(serde_json::Value::Number(id)) => id.to_string(),
-        _ => bail!("Hyprland window {address} has no stableId; this Hyprland is too old for per-window capture"),
+        _ => bail!(
+            "Hyprland window {address} has no stableId; this Hyprland is too old for per-window capture"
+        ),
     };
     if stable_id.is_empty() || !stable_id.chars().all(|c| c.is_ascii_alphanumeric()) {
         bail!("Hyprland window {address} has an unexpected stableId {stable_id:?}");
@@ -532,10 +534,8 @@ fn hyprctl_output(args: &[&str]) -> std::io::Result<std::process::Output> {
     let has_signature = std::env::var("HYPRLAND_INSTANCE_SIGNATURE")
         .ok()
         .is_some_and(|value| !value.trim().is_empty());
-    if !has_signature {
-        if let Some(signature) = infer_hyprland_instance_signature() {
-            command.args(["-i", &signature]);
-        }
+    if !has_signature && let Some(signature) = infer_hyprland_instance_signature() {
+        command.args(["-i", &signature]);
     }
     command.args(args).output()
 }
@@ -545,10 +545,8 @@ async fn hyprctl_output_async(args: &[&str]) -> Result<std::process::Output> {
     let has_signature = std::env::var("HYPRLAND_INSTANCE_SIGNATURE")
         .ok()
         .is_some_and(|value| !value.trim().is_empty());
-    if !has_signature {
-        if let Some(signature) = infer_hyprland_instance_signature() {
-            command.args(["-i", &signature]);
-        }
+    if !has_signature && let Some(signature) = infer_hyprland_instance_signature() {
+        command.args(["-i", &signature]);
     }
     command.args(args);
     command_runner::output(command, "run hyprctl").await

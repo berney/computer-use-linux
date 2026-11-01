@@ -1,5 +1,5 @@
 //! Explicit, foreground GNOME accessibility hold-open. Never started by observation tools.
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use atspi::events::window::ActivateEvent;
 use atspi_connection::AccessibilityConnection;
 use futures_util::StreamExt;
@@ -65,7 +65,9 @@ pub(crate) async fn run() -> Result<()> {
         tokio::select! { _ = interrupt.recv() => {}, _ = terminate.recv() => {} }
     };
     tokio::pin!(stop);
-    eprintln!("Accessibility guard requested: keeps GNOME toolkit-accessibility enabled while running. Stop with Ctrl-C or SIGTERM before disabling accessibility.");
+    eprintln!(
+        "Accessibility guard requested: keeps GNOME toolkit-accessibility enabled while running. Stop with Ctrl-C or SIGTERM before disabling accessibility."
+    );
     let Some(connection) = until_stopped(&mut stop, async {
         timeout(DEADLINE, AccessibilityConnection::new())
             .await
@@ -125,7 +127,9 @@ pub(crate) async fn run() -> Result<()> {
     }.await;
     drop(events);
     let _ = timeout(DEADLINE, connection.deregister_event::<ActivateEvent>()).await;
-    eprintln!("Accessibility guard stopped: no more setting writes; current saved setting left unchanged.");
+    eprintln!(
+        "Accessibility guard stopped: no more setting writes; current saved setting left unchanged."
+    );
     result
 }
 

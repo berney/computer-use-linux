@@ -170,12 +170,11 @@ fn named_key(part: &str) -> Option<String> {
         "arrowup" | "up" => "Up",
         "arrowdown" | "down" => "Down",
         _ => {
-            if let Some(n) = part.strip_prefix('f') {
-                if let Ok(n) = n.parse::<u8>() {
-                    if (1..=12).contains(&n) {
-                        return Some(format!("F{n}"));
-                    }
-                }
+            if let Some(n) = part.strip_prefix('f')
+                && let Ok(n) = n.parse::<u8>()
+                && (1..=12).contains(&n)
+            {
+                return Some(format!("F{n}"));
             }
             if part.len() == 1 {
                 let ch = part.chars().next()?;

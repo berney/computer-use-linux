@@ -9,13 +9,16 @@ fn session_discovery_is_reused_and_environment_changes_refresh_it() {
             hydrate_session_bus_env();
         }
         assert_eq!(fs::read_to_string(&log).unwrap().lines().count(), 1);
-        std::env::set_var("DISPLAY", ":45679");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("DISPLAY", ":45679") };
         hydrate_session_bus_env();
         assert_eq!(fs::read_to_string(&log).unwrap().lines().count(), 2);
         let fail = PathBuf::from(std::env::var_os("CUL_HYDRATION_TEST_FAIL").unwrap());
         fs::write(&fail, "fail").unwrap();
-        std::env::remove_var("XDG_CURRENT_DESKTOP");
-        std::env::remove_var("XDG_SESSION_TYPE");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("XDG_CURRENT_DESKTOP") };
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("XDG_SESSION_TYPE") };
         hydrate_session_bus_env();
         fs::remove_file(fail).unwrap();
         hydrate_session_bus_env();

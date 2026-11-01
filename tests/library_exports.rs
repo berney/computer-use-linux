@@ -1,7 +1,7 @@
 use computer_use_linux::{
-    atspi_tree::{snapshot_tree, AccessibilityNode},
-    diagnostics::{doctor_report, hydrate_session_bus_env, Check, DoctorReport},
-    screenshot::{capture_screenshot_raw, RawScreenshotCapture},
+    atspi_tree::{AccessibilityNode, snapshot_tree},
+    diagnostics::{Check, DoctorReport, doctor_report, hydrate_session_bus_env},
+    screenshot::{RawScreenshotCapture, capture_screenshot_raw},
 };
 
 #[test]

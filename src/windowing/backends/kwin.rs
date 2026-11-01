@@ -2,8 +2,8 @@ use crate::diagnostics::hydrate_session_bus_env;
 use crate::remote_desktop::LogicalMonitor;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
-use crate::windowing::types::{WindowBounds, WindowInfo, MAX_WINDOW_ID};
-use anyhow::{bail, Context, Result};
+use crate::windowing::types::{MAX_WINDOW_ID, WindowBounds, WindowInfo};
+use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::{
     fs::{self, OpenOptions},
@@ -14,9 +14,9 @@ use std::{
 };
 use tokio::time::{sleep, timeout};
 use zbus::{
+    Proxy,
     message::Header,
     names::{BusName, OwnedUniqueName},
-    Proxy,
 };
 
 pub const KWIN_BACKEND: &str = "kwin";
@@ -1296,7 +1296,9 @@ impl KwinElementClickSnapshot {
         }
         let window = match matching.as_slice() {
             [window] => *window,
-            [] => anyhow::bail!("AT-SPI frame matches neither client-local, global client, nor global decorated KWin geometry for the root PID"),
+            [] => anyhow::bail!(
+                "AT-SPI frame matches neither client-local, global client, nor global decorated KWin geometry for the root PID"
+            ),
             _ => anyhow::bail!(
                 "AT-SPI frame matches multiple same-PID KWin windows; focus or a requested window_id cannot prove element ownership"
             ),
@@ -1306,7 +1308,9 @@ impl KwinElementClickSnapshot {
                 .kwin_uuid()
                 .is_none_or(|uuid| kwin_window_id_from_uuid(&uuid) != id)
         }) {
-            anyhow::bail!("selected AT-SPI frame belongs to a different KWin window than the cached or requested window identity");
+            anyhow::bail!(
+                "selected AT-SPI frame belongs to a different KWin window than the cached or requested window identity"
+            );
         }
         if !element_window(window) {
             anyhow::bail!(
@@ -1891,7 +1895,7 @@ mod adapter_tests {
 #[cfg(test)]
 mod element_click_tests {
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     const UUID: &str = "b4dfacf8-a559-43c9-8b1f-ecd5cfd78359";
     const OTHER_UUID: &str = "11111111-2222-3333-4444-555555555555";
@@ -2037,9 +2041,11 @@ mod element_click_tests {
         let json = json!({"windows": [transient.clone()]}).to_string();
         assert_eq!(parse_kwin_windows(&json).unwrap().len(), 1);
         let outputs = vec![output("DP-1", rect(0, 0, 2560, 1440), json!(1.5))];
-        assert!(snapshot(vec![transient.clone()], outputs.clone())
-            .map_element_click(&target([0, 0, 800, 600], (32, 16)), 3840, 2160)
-            .is_ok());
+        assert!(
+            snapshot(vec![transient.clone()], outputs.clone())
+                .map_element_click(&target([0, 0, 800, 600], (32, 16)), 3840, 2160)
+                .is_ok()
+        );
         for flag in ["managed", "wantsInput", "specialWindow", "popupWindow"] {
             let mut unproven = transient.clone();
             unproven[flag] = Value::Null;
@@ -2122,9 +2128,11 @@ mod element_click_tests {
                 vec![window],
                 vec![output("DP-1", rect(0, 0, 2560, 1440), json!(1.5))],
             );
-            assert!(snapshot
-                .map_element_click(&target([0, 0, 800, 600], (32, 16)), 3840, 2160)
-                .is_err());
+            assert!(
+                snapshot
+                    .map_element_click(&target([0, 0, 800, 600], (32, 16)), 3840, 2160)
+                    .is_err()
+            );
         }
     }
 
@@ -2278,9 +2286,11 @@ mod element_click_tests {
             vec![window],
             vec![output("DP-1", rect(0, 0, 1000, 800), json!(1.0))],
         );
-        assert!(mismatch
-            .map_element_click(&target([0, 0, 800, 600], (32, 16)), 2000, 1600)
-            .is_err());
+        assert!(
+            mismatch
+                .map_element_click(&target([0, 0, 800, 600], (32, 16)), 2000, 1600)
+                .is_err()
+        );
 
         let error = KwinElementClickSnapshot::from_json(
             &json!({
@@ -2501,14 +2511,18 @@ mod callback_tests {
         let (callback, receiver) = callback();
         let valid = r#"{"backend":"kwin","pluginName":"computer_use_linux_kwin_window_query_test","windows":[]}"#;
 
-        assert!(callback
-            .accept(Some(":1.99"), KwinCallbackKind::Windows, valid)
-            .is_err());
+        assert!(
+            callback
+                .accept(Some(":1.99"), KwinCallbackKind::Windows, valid)
+                .is_err()
+        );
         assert!(receiver.try_recv().is_err());
 
-        assert!(callback
-            .accept(Some(":1.42"), KwinCallbackKind::Result, valid)
-            .is_err());
+        assert!(
+            callback
+                .accept(Some(":1.42"), KwinCallbackKind::Result, valid)
+                .is_err()
+        );
         assert!(receiver.try_recv().is_err());
 
         for payload in [
@@ -2516,9 +2530,11 @@ mod callback_tests {
             r#"{"backend":"other","pluginName":"computer_use_linux_kwin_window_query_test","windows":[]}"#,
             r#"{"backend":"kwin","pluginName":"wrong","windows":[]}"#,
         ] {
-            assert!(callback
-                .accept(Some(":1.42"), KwinCallbackKind::Windows, payload)
-                .is_err());
+            assert!(
+                callback
+                    .accept(Some(":1.42"), KwinCallbackKind::Windows, payload)
+                    .is_err()
+            );
             assert!(receiver.try_recv().is_err());
         }
 
@@ -2527,9 +2543,11 @@ mod callback_tests {
             .unwrap();
         assert_eq!(receiver.try_recv().unwrap(), valid);
 
-        assert!(callback
-            .accept(Some(":1.42"), KwinCallbackKind::Windows, valid)
-            .is_err());
+        assert!(
+            callback
+                .accept(Some(":1.42"), KwinCallbackKind::Windows, valid)
+                .is_err()
+        );
         assert!(receiver.try_recv().is_err());
     }
 }
@@ -2542,8 +2560,8 @@ mod transaction_tests {
         io::{BufRead, BufReader},
         process::{Child, Command, Stdio},
         sync::{
-            atomic::{AtomicUsize, Ordering},
             Arc, Mutex,
+            atomic::{AtomicUsize, Ordering},
         },
         time::Instant,
     };
@@ -2674,11 +2692,13 @@ mod transaction_tests {
         let path = script_path.lock().unwrap().clone().unwrap();
         assert!(!path.exists(), "temporary KWin script was not removed");
         let object_path = callback_path.lock().unwrap().clone().unwrap();
-        assert!(client_connection
-            .object_server()
-            .interface::<_, KwinWindowCallback>(object_path.as_str())
-            .await
-            .is_err());
+        assert!(
+            client_connection
+                .object_server()
+                .interface::<_, KwinWindowCallback>(object_path.as_str())
+                .await
+                .is_err()
+        );
 
         drop(service_connection);
         drop(client_connection);
@@ -2733,20 +2753,22 @@ mod transaction_tests {
         let expected_sender = service_connection.unique_name().unwrap().to_owned();
         let expected_sender_name = expected_sender.to_string();
         let (sender, receiver) = mpsc::channel();
-        assert!(client_connection
-            .object_server()
-            .at(
-                callback_path.as_str(),
-                KwinWindowCallback {
-                    sender,
-                    expected_sender,
-                    expected_kind: KwinCallbackKind::Windows,
-                    plugin_name: plugin_name.to_string(),
-                    delivered: AtomicBool::new(false),
-                },
-            )
-            .await
-            .unwrap());
+        assert!(
+            client_connection
+                .object_server()
+                .at(
+                    callback_path.as_str(),
+                    KwinWindowCallback {
+                        sender,
+                        expected_sender,
+                        expected_kind: KwinCallbackKind::Windows,
+                        plugin_name: plugin_name.to_string(),
+                        delivered: AtomicBool::new(false),
+                    },
+                )
+                .await
+                .unwrap()
+        );
 
         let error = call_kwin_script_on_connection_with_plugin_name(
             client_connection.clone(),

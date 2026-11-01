@@ -17,15 +17,15 @@ use std::fs::{self, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::atspi_tree::AccessibilityNode;
-use crate::tree_encoding::{node_json_len, EncodedNodes, NodeDetail};
+use crate::tree_encoding::{EncodedNodes, NodeDetail, node_json_len};
 
 /// Largest whole tool result, in serialized bytes, before the tree is spilled.
 /// It keeps a result inside a 10,000-token host limit (about 40,000 bytes of
@@ -165,10 +165,10 @@ impl TreeSpiller {
 
     /// Remove files left by servers that are gone, or that are too old.
     pub(crate) fn sweep(&self) {
-        if let Some(dir) = &self.dir {
-            if private_dir(dir).is_ok() {
-                sweep(dir, std::process::id(), self.start);
-            }
+        if let Some(dir) = &self.dir
+            && private_dir(dir).is_ok()
+        {
+            sweep(dir, std::process::id(), self.start);
         }
     }
 }

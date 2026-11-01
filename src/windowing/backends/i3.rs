@@ -2,7 +2,7 @@ use crate::command_runner;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::{WindowBounds, WindowInfo};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::{env, fs, os::unix::fs::FileTypeExt, path::PathBuf, process::Command};
 use tokio::process::Command as TokioCommand;

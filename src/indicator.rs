@@ -26,8 +26,8 @@ use std::{
     path::{Path, PathBuf},
     process::Stdio,
     sync::{
-        atomic::{AtomicU32, Ordering},
         Mutex, OnceLock,
+        atomic::{AtomicU32, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -516,7 +516,8 @@ impl Indicator {
         let Ok(payload) = serde_json::to_vec(event) else {
             return false;
         };
-        let sent = match socket.send_to(&payload, path) {
+
+        match socket.send_to(&payload, path) {
             Ok(_) => true,
             Err(error)
                 if matches!(
@@ -527,8 +528,7 @@ impl Indicator {
                 self.start_overlay(path).await && socket.send_to(&payload, path).is_ok()
             }
             Err(_) => false,
-        };
-        sent
+        }
     }
 
     async fn start_overlay(&self, path: &Path) -> bool {
@@ -787,9 +787,11 @@ mod tests {
                 >= HIDE_SETTLE
         );
         // Neither another sender nor an unknown reply can authorize a capture.
-        assert!(hold_with_reply("spoofed", CAPTURE_REPLY_EMPTY, true)
-            .await
-            .is_err());
+        assert!(
+            hold_with_reply("spoofed", CAPTURE_REPLY_EMPTY, true)
+                .await
+                .is_err()
+        );
         assert!(hold_with_reply("invalid", b"garbage", false).await.is_err());
     }
 

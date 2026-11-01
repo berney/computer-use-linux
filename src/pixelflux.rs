@@ -1,7 +1,7 @@
 use crate::remote_desktop::{PointerButton, ScrollDirection};
-use anyhow::{anyhow, bail, Context, Result};
-use base64::{engine::general_purpose::STANDARD, Engine};
-use serde_json::{json, Value};
+use anyhow::{Context, Result, anyhow, bail};
+use base64::{Engine, engine::general_purpose::STANDARD};
+use serde_json::{Value, json};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -525,8 +525,10 @@ mod tests {
                 .map(|(key, value)| {
                     let old = std::env::var_os(key);
                     match value {
-                        Some(value) => std::env::set_var(key, value),
-                        None => std::env::remove_var(key),
+                        // FIXME: Audit that the environment access only happens in single-threaded code.
+                        Some(value) => unsafe { std::env::set_var(key, value) },
+                        // FIXME: Audit that the environment access only happens in single-threaded code.
+                        None => unsafe { std::env::remove_var(key) },
                     }
                     (*key, old)
                 })
@@ -539,8 +541,10 @@ mod tests {
         fn drop(&mut self) {
             for (key, value) in &self.saved {
                 match value {
-                    Some(value) => std::env::set_var(key, value),
-                    None => std::env::remove_var(key),
+                    // FIXME: Audit that the environment access only happens in single-threaded code.
+                    Some(value) => unsafe { std::env::set_var(key, value) },
+                    // FIXME: Audit that the environment access only happens in single-threaded code.
+                    None => unsafe { std::env::remove_var(key) },
                 }
             }
         }

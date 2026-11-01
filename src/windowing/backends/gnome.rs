@@ -3,12 +3,12 @@ use crate::identity;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::{WindowBounds, WindowInfo};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::{collections::HashMap, process::Command};
 use zbus::{
+    Proxy,
     names::{BusName, OwnedUniqueName},
     zvariant::OwnedValue,
-    Proxy,
 };
 
 pub const GNOME_SHELL_INTROSPECT_BACKEND: &str = "gnome-shell-introspect";

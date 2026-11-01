@@ -32,11 +32,7 @@ pub(crate) enum NodeDetail {
 
 impl NodeDetail {
     pub(crate) fn from_verbose(verbose: bool) -> Self {
-        if verbose {
-            Self::Full
-        } else {
-            Self::Compact
-        }
+        if verbose { Self::Full } else { Self::Compact }
     }
 }
 

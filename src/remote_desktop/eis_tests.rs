@@ -1,11 +1,10 @@
 //! Private D-Bus and EIS peers. No connection to the host desktop is used.
 use super::*;
 use reis::{
-    eis,
+    PendingRequestResult, eis,
     event::DeviceCapability,
     handshake::EisHandshaker,
     request::{EisRequest, EisRequestConverter},
-    PendingRequestResult,
 };
 use std::{os::unix::net::UnixStream, sync::mpsc, time::Instant};
 

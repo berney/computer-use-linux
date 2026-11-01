@@ -2,7 +2,7 @@
 //! devices are created. A background Wayland client cannot establish the active
 //! layout group, so every configured group must support the complete text.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::{
     collections::HashMap,
     env,
@@ -16,8 +16,8 @@ use std::{
     time::{Duration, Instant},
 };
 use wayland_client::{
-    protocol::{wl_callback, wl_keyboard, wl_registry, wl_seat},
     Connection, Dispatch, QueueHandle, WEnum,
+    protocol::{wl_callback, wl_keyboard, wl_registry, wl_seat},
 };
 use xkbcommon_dl as xkb;
 
@@ -85,7 +85,9 @@ fn read_keymap(deadline: Instant) -> Result<Vec<u8>> {
         queue.dispatch_pending(&mut state)?;
         if state.registry_done {
             if state.seats.len() != 1 {
-                bail!("cannot verify a keyboard keymap without exactly one Wayland seat; use set_value on an editable field");
+                bail!(
+                    "cannot verify a keyboard keymap without exactly one Wayland seat; use set_value on an editable field"
+                );
             }
             if let Some(keymap) = state.keymap.take() {
                 return keymap;
@@ -182,10 +184,10 @@ impl Dispatch<wl_seat::WlSeat, ()> for Reader {
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(capabilities),
         } = event
+            && state.keyboard.is_none()
+            && capabilities.contains(wl_seat::Capability::Keyboard)
         {
-            if state.keyboard.is_none() && capabilities.contains(wl_seat::Capability::Keyboard) {
-                state.keyboard = Some(seat.get_keyboard(qh, ()));
-            }
+            state.keyboard = Some(seat.get_keyboard(qh, ()));
         }
     }
 }
@@ -329,7 +331,11 @@ fn validate_groups(text: &str, keysyms: &[i32], groups: &[HashMap<u32, u32>]) ->
                 _ => false,
             };
             if !supported {
-                bail!("GNOME portal cannot verify U+{:04X} in keyboard layout group {}. A background client cannot verify the active group, so every group must support the complete text. No text was sent; use set_value on an editable field.", ch as u32, index + 1);
+                bail!(
+                    "GNOME portal cannot verify U+{:04X} in keyboard layout group {}. A background client cannot verify the active group, so every group must support the complete text. No text was sent; use set_value on an editable field.",
+                    ch as u32,
+                    index + 1
+                );
             }
         }
     }
@@ -347,20 +353,24 @@ mod tests {
         let map = Keymap::parse(bytes).expect("parse the self-contained XKB fixture");
         let groups = map.first_levels(Instant::now() + READ_TIMEOUT).unwrap();
         assert_eq!(groups.len(), 2);
-        assert!(validate_groups(
-            "aA",
-            &[xkeysym::key::a as i32, xkeysym::key::A as i32],
-            &groups
-        )
-        .is_ok());
-        assert!(validate_groups(
-            "a`",
-            &[xkeysym::key::a as i32, xkeysym::key::grave as i32],
-            &groups
-        )
-        .unwrap_err()
-        .to_string()
-        .contains("group 2"));
+        assert!(
+            validate_groups(
+                "aA",
+                &[xkeysym::key::a as i32, xkeysym::key::A as i32],
+                &groups
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_groups(
+                "a`",
+                &[xkeysym::key::a as i32, xkeysym::key::grave as i32],
+                &groups
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("group 2")
+        );
         assert!(validate_groups("א", &[xkeysym::key::hebrew_aleph as i32], &groups).is_err());
     }
 
@@ -372,12 +382,14 @@ mod tests {
             (xkeysym::key::Shift_L, 0),
         ]);
         let german = HashMap::from([(xkeysym::key::a, 0), (xkeysym::key::dead_circumflex, 0)]);
-        assert!(validate_groups(
-            "a^",
-            &[xkeysym::key::a as i32, xkeysym::key::asciicircum as i32],
-            std::slice::from_ref(&latin)
-        )
-        .is_ok());
+        assert!(
+            validate_groups(
+                "a^",
+                &[xkeysym::key::a as i32, xkeysym::key::asciicircum as i32],
+                std::slice::from_ref(&latin)
+            )
+            .is_ok()
+        );
         let error = validate_groups(
             "a^",
             &[xkeysym::key::a as i32, xkeysym::key::asciicircum as i32],

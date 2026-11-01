@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, os::fd::AsRawFd};
 use wayland_client::protocol::{wl_callback, wl_registry};
-use wayland_client::{event_created_child, Connection, Dispatch, Proxy, QueueHandle};
+use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, event_created_child};
 use wayland_protocols_wlr::output_management::v1::client::{
     zwlr_output_head_v1, zwlr_output_manager_v1, zwlr_output_mode_v1,
 };
@@ -301,10 +301,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State {
             interface,
             version,
         } = event
+            && interface == "zwlr_output_manager_v1"
+            && version > 0
+            && state.manager.is_none()
         {
-            if interface == "zwlr_output_manager_v1" && version > 0 && state.manager.is_none() {
-                state.manager = Some(registry.bind(name, version.min(4), qh, ()));
-            }
+            state.manager = Some(registry.bind(name, version.min(4), qh, ()));
         }
     }
 }

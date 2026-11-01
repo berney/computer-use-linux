@@ -1,8 +1,8 @@
 //! GNOME Shell renders actors; this process retains the shared capture protocol.
 use anyhow::{Context, Result};
 use computer_use_linux::indicator::{
-    capture_lock_path, gnome_indicator_state, hide_gnome_indicator, show_gnome_indicator,
-    socket_path, Capture, IndicatorEvent, CAPTURE_REPLY_EMPTY, CAPTURE_REPLY_SHOWN,
+    CAPTURE_REPLY_EMPTY, CAPTURE_REPLY_SHOWN, Capture, IndicatorEvent, capture_lock_path,
+    gnome_indicator_state, hide_gnome_indicator, show_gnome_indicator, socket_path,
 };
 use std::{
     fs::{File, OpenOptions, TryLockError},
@@ -76,17 +76,17 @@ pub fn run() -> Result<()> {
             if blocked && !suspended {
                 hidden = Some(hide_gnome_indicator(&connection).await?);
             }
-            if !blocked && suspended {
-                if let Some(event) = &last {
-                    if action_at.elapsed() < Duration::from_secs(8) {
-                        show_gnome_indicator(
-                            &connection,
-                            event,
-                            action_at.elapsed().as_millis().min(u32::MAX as u128) as u32,
-                        )
-                        .await?;
-                    }
-                }
+            if !blocked
+                && suspended
+                && let Some(event) = &last
+                && action_at.elapsed() < Duration::from_secs(8)
+            {
+                show_gnome_indicator(
+                    &connection,
+                    event,
+                    action_at.elapsed().as_millis().min(u32::MAX as u128) as u32,
+                )
+                .await?;
             }
             suspended = blocked;
             let mut buf = [0; 4096];

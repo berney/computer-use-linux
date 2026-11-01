@@ -1,45 +1,46 @@
 use crate::atspi_tree::{
-    accessibility_chrome_context, focused_element_summary_in_app, list_accessible_apps,
-    object_ref_owner_pid, perform_action as invoke_accessibility_action, perform_named_action,
-    probe_focused_element, set_element_value, snapshot_accessibility_tree, AccessibilityAction,
-    AccessibilityNode, AccessibleAppSummary, Bounds, EditableTextSetOutcome, FocusProbe,
-    FocusedElementSummary, ValueSetInvocation,
+    AccessibilityAction, AccessibilityNode, AccessibleAppSummary, Bounds, EditableTextSetOutcome,
+    FocusProbe, FocusedElementSummary, ValueSetInvocation, accessibility_chrome_context,
+    focused_element_summary_in_app, list_accessible_apps, object_ref_owner_pid,
+    perform_action as invoke_accessibility_action, perform_named_action, probe_focused_element,
+    set_element_value, snapshot_accessibility_tree,
 };
 use crate::diagnostics::{
-    doctor_report, setup_accessibility_report, DoctorReport, ReadinessReport, SetupReport,
-    WindowingReport,
+    DoctorReport, ReadinessReport, SetupReport, WindowingReport, doctor_report,
+    setup_accessibility_report,
 };
 use crate::diagnostics_cache::DiagnosticsCache;
-use crate::gnome_extension::{setup_window_targeting_report, WindowTargetingSetupReport};
+use crate::gnome_extension::{WindowTargetingSetupReport, setup_window_targeting_report};
 use crate::remote_desktop::{
+    PointerButton, PortalKey, PortalKeyboardSession, PortalPointerSession, ScrollDirection,
     click as portal_click, drag as portal_drag, keysyms_for_text, press_key_chord,
     press_keycode_chord, scroll as portal_scroll, start_portal_keyboard_session,
-    start_portal_pointer_session, type_text_with_keysyms, PointerButton, PortalKey,
-    PortalKeyboardSession, PortalPointerSession, ScrollDirection,
+    start_portal_pointer_session, type_text_with_keysyms,
 };
 use crate::screenshot::{
-    capture_screenshot_raw, prepare_screenshot_payload, RawScreenshotCapture, ScreenshotCapture,
-    ScreenshotOutputFormat, ScreenshotPayloadOptions,
+    RawScreenshotCapture, ScreenshotCapture, ScreenshotOutputFormat, ScreenshotPayloadOptions,
+    capture_screenshot_raw, prepare_screenshot_payload,
 };
-use crate::terminal::{terminal_paste_shortcut, TerminalPasteShortcut};
-use crate::tree_encoding::{is_placeholder_text, NodeDetail, TreeNodes};
+use crate::terminal::{TerminalPasteShortcut, terminal_paste_shortcut};
+use crate::tree_encoding::{NodeDetail, TreeNodes, is_placeholder_text};
 use crate::windowing::backends::kwin::{
     KwinElementClickPoint, KwinElementClickTarget, KwinElementFrame,
 };
 use crate::windowing::registry;
 use crate::windows::{
-    focus_window_target, focused_window, focused_window_with_backend, list_windows,
-    resolve_window_target, window_permission_hint, WindowFocusResult, WindowInfo, WindowTarget,
     GNOME_SHELL_EXTENSION_BACKEND, GNOME_SHELL_INTROSPECT_BACKEND, KWIN_BACKEND,
-    UNAVAILABLE_BACKEND,
+    UNAVAILABLE_BACKEND, WindowFocusResult, WindowInfo, WindowTarget, focus_window_target,
+    focused_window, focused_window_with_backend, list_windows, resolve_window_target,
+    window_permission_hint,
 };
 use crate::ydotool;
 use anyhow::{Context, Result};
 use rmcp::{
+    ErrorData, ServerHandler, ServiceExt,
     handler::server::wrapper::{Json, Parameters},
     model::{CallToolResult, ContentBlock},
     schemars::JsonSchema,
-    tool, tool_handler, tool_router, ErrorData, ServerHandler, ServiceExt,
+    tool, tool_handler, tool_router,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -696,21 +697,17 @@ impl ComputerUseLinux {
         } else if let Some(capture) = &screenshot {
             format!(
                 "MCP registration, screenshot capture, and AT-SPI tree extraction are working. Captured {} accessibility nodes (compacted from {}) and a screenshot through {}.",
-                compacted_count,
-                accessibility_tree_raw_count,
-                capture.source
+                compacted_count, accessibility_tree_raw_count, capture.source
             )
         } else if let Some(error) = &screenshot_error {
             format!(
                 "MCP registration and AT-SPI tree extraction are working. Captured {} accessibility nodes (compacted from {}). Screenshot capture failed: {error}",
-                compacted_count,
-                accessibility_tree_raw_count,
+                compacted_count, accessibility_tree_raw_count,
             )
         } else {
             format!(
                 "MCP registration and AT-SPI tree extraction are working. Captured {} accessibility nodes (compacted from {}). Screenshot capture was not requested.",
-                compacted_count,
-                accessibility_tree_raw_count,
+                compacted_count, accessibility_tree_raw_count,
             )
         };
         if let Some(window) = &window_context {
@@ -874,10 +871,10 @@ impl ComputerUseLinux {
     async fn capture_screenshot(&self, params: ScreenshotParams) -> Result<CallToolResult> {
         let _pipeline = crate::screenshot_impl::screenshot_pipeline_permit().await?;
         let target = params.window_target();
-        if let (Some(target), false) = (target.as_ref(), params.full_screen.unwrap_or(false)) {
-            if let Some(result) = self.hyprland_background_screenshot(target, &params).await {
-                return result;
-            }
+        if let (Some(target), false) = (target.as_ref(), params.full_screen.unwrap_or(false))
+            && let Some(result) = self.hyprland_background_screenshot(target, &params).await
+        {
+            return result;
         }
         let target_window = match target.as_ref() {
             Some(target) => Some(
@@ -1040,7 +1037,7 @@ impl ComputerUseLinux {
                 .map_err(|_| "absolute pointer lock was poisoned".to_string())?;
             match guard.as_ref() {
                 Some(pointer) if pointer.matches_dimensions(width as i32, height as i32) => {
-                    return Ok(true)
+                    return Ok(true);
                 }
                 Some(_) => {
                     *guard = None;
@@ -1211,10 +1208,9 @@ impl ComputerUseLinux {
             }
             input_focus = focus;
         }
-        if params.x.zip(params.y).is_none()
-            || params.coordinate_space == ClickCoordinateSpace::Atspi
-        {
-            if let Err(message) = self
+        if (params.x.zip(params.y).is_none()
+            || params.coordinate_space == ClickCoordinateSpace::Atspi)
+            && let Err(message) = self
                 .check_cached_element_target(
                     params.element_index,
                     &params.selector(),
@@ -1222,15 +1218,14 @@ impl ComputerUseLinux {
                     &owner_target,
                 )
                 .await
-            {
-                return Json(ActionOutput {
-                    ok: false,
-                    implemented: true,
-                    action: "click".to_string(),
-                    message,
-                    received,
-                });
-            }
+        {
+            return Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "click".to_string(),
+                message,
+                received,
+            });
         }
         let target = match self.resolve_click_target(&params) {
             Ok(target) => target,
@@ -1446,104 +1441,110 @@ impl ComputerUseLinux {
             }
         }
         let off_screen_note = self.off_screen_note_for_point(x, y).await;
-        if let Some(session) = self.cached_portal_pointer_session() {
-            let Some((portal_x, portal_y)) =
-                portal_target_point.or_else(|| self.logical_portal_point(&session, x, y))
-            else {
-                self.clear_portal_pointer_session(&session);
-                return Json(with_notes(
-                    portal_coordinate_error("click", received),
-                    off_screen_note.clone(),
-                ));
-            };
-            match portal_click(
-                &session,
-                portal_x,
-                portal_y,
-                PointerButton::from_name(params.button.as_deref()),
-                params.click_count.unwrap_or(1).clamp(1, 10),
-            )
-            .await
-            {
-                Ok(()) => {
-                    return Json(kwin_element_click_dispatch_output(
-                        with_notes(
-                            ActionOutput {
-                                ok: true,
-                                implemented: true,
-                                action: "click".to_string(),
-                                message: "Action sent through the remote desktop portal."
-                                    .to_string(),
-                                received,
-                            },
-                            off_screen_note.clone(),
-                        ),
-                        kwin_click,
-                        "the remote desktop portal",
-                    ));
-                }
-                Err(error) => {
+        match self.cached_portal_pointer_session() {
+            Some(session) => {
+                let Some((portal_x, portal_y)) =
+                    portal_target_point.or_else(|| self.logical_portal_point(&session, x, y))
+                else {
                     self.clear_portal_pointer_session(&session);
                     return Json(with_notes(
-                        portal_action_error("click", error, received),
+                        portal_coordinate_error("click", received),
                         off_screen_note.clone(),
                     ));
-                }
-            }
-        } else if self.should_prefer_portal_pointer_backend().await {
-            match self.ensure_portal_pointer_session().await {
-                Ok(Some(session)) => {
-                    if let Some(target) = window_target.as_ref() {
-                        if let Err(message) = self.focus_target_for_input(target).await {
-                            return Json(action_result("click", Err(message), received));
-                        }
+                };
+                match portal_click(
+                    &session,
+                    portal_x,
+                    portal_y,
+                    PointerButton::from_name(params.button.as_deref()),
+                    params.click_count.unwrap_or(1).clamp(1, 10),
+                )
+                .await
+                {
+                    Ok(()) => {
+                        return Json(kwin_element_click_dispatch_output(
+                            with_notes(
+                                ActionOutput {
+                                    ok: true,
+                                    implemented: true,
+                                    action: "click".to_string(),
+                                    message: "Action sent through the remote desktop portal."
+                                        .to_string(),
+                                    received,
+                                },
+                                off_screen_note.clone(),
+                            ),
+                            kwin_click,
+                            "the remote desktop portal",
+                        ));
                     }
-                    let Some((portal_x, portal_y)) =
-                        portal_target_point.or_else(|| self.logical_portal_point(&session, x, y))
-                    else {
+                    Err(error) => {
                         self.clear_portal_pointer_session(&session);
                         return Json(with_notes(
-                            portal_coordinate_error("click", received),
+                            portal_action_error("click", error, received),
                             off_screen_note.clone(),
                         ));
-                    };
-                    match portal_click(
-                        &session,
-                        portal_x,
-                        portal_y,
-                        PointerButton::from_name(params.button.as_deref()),
-                        params.click_count.unwrap_or(1).clamp(1, 10),
-                    )
-                    .await
-                    {
-                        Ok(()) => {
-                            return Json(kwin_element_click_dispatch_output(
-                                with_notes(
-                                    ActionOutput {
-                                        ok: true,
-                                        implemented: true,
-                                        action: "click".to_string(),
-                                        message: "Action sent through the remote desktop portal."
-                                            .to_string(),
-                                        received,
-                                    },
-                                    off_screen_note.clone(),
-                                ),
-                                kwin_click,
-                                "the remote desktop portal",
-                            ));
-                        }
-                        Err(error) => {
-                            self.clear_portal_pointer_session(&session);
-                            return Json(with_notes(
-                                portal_action_error("click", error, received),
-                                off_screen_note.clone(),
-                            ));
-                        }
                     }
                 }
-                Ok(None) => {}
-                Err(error) => return Json(portal_start_error("click", error, received)),
+            }
+            _ => {
+                if self.should_prefer_portal_pointer_backend().await {
+                    match self.ensure_portal_pointer_session().await {
+                        Ok(Some(session)) => {
+                            if let Some(target) = window_target.as_ref()
+                                && let Err(message) = self.focus_target_for_input(target).await
+                            {
+                                return Json(action_result("click", Err(message), received));
+                            }
+                            let Some((portal_x, portal_y)) = portal_target_point
+                                .or_else(|| self.logical_portal_point(&session, x, y))
+                            else {
+                                self.clear_portal_pointer_session(&session);
+                                return Json(with_notes(
+                                    portal_coordinate_error("click", received),
+                                    off_screen_note.clone(),
+                                ));
+                            };
+                            match portal_click(
+                                &session,
+                                portal_x,
+                                portal_y,
+                                PointerButton::from_name(params.button.as_deref()),
+                                params.click_count.unwrap_or(1).clamp(1, 10),
+                            )
+                            .await
+                            {
+                                Ok(()) => {
+                                    return Json(kwin_element_click_dispatch_output(
+                                        with_notes(
+                                            ActionOutput {
+                                                ok: true,
+                                                implemented: true,
+                                                action: "click".to_string(),
+                                                message:
+                                                    "Action sent through the remote desktop portal."
+                                                        .to_string(),
+                                                received,
+                                            },
+                                            off_screen_note.clone(),
+                                        ),
+                                        kwin_click,
+                                        "the remote desktop portal",
+                                    ));
+                                }
+                                Err(error) => {
+                                    self.clear_portal_pointer_session(&session);
+                                    return Json(with_notes(
+                                        portal_action_error("click", error, received),
+                                        off_screen_note.clone(),
+                                    ));
+                                }
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(error) => return Json(portal_start_error("click", error, received)),
+                    }
+                }
             }
         }
         if self.is_wayland_session() {
@@ -1842,8 +1843,9 @@ impl ComputerUseLinux {
                 window_target = Some(portal_focus_target(target, &focus.requested_window));
             }
         }
-        if params.x.is_none() && params.y.is_none() {
-            if let Err(message) = self
+        if params.x.is_none()
+            && params.y.is_none()
+            && let Err(message) = self
                 .check_cached_element_target(
                     params.element_index,
                     &ElementSelector::default(),
@@ -1851,15 +1853,14 @@ impl ComputerUseLinux {
                     &owner_target,
                 )
                 .await
-            {
-                return Json(ActionOutput {
-                    ok: false,
-                    implemented: true,
-                    action: "scroll".to_string(),
-                    message,
-                    received,
-                });
-            }
+        {
+            return Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "scroll".to_string(),
+                message,
+                received,
+            });
         }
         let target_point =
             match self.resolve_optional_target_point(params.x, params.y, params.element_index) {
@@ -1971,109 +1972,119 @@ impl ComputerUseLinux {
         }
         // Coordinate scroll needs the same accurate positioning as click. Keep
         // the move and wheel event under one cancellation-safe input guard.
-        if let Some((x, y)) = target_point {
-            if self.is_wayland_session()
-                && ydotool_backend_available().await
-                && self.ensure_abs_pointer().await
-            {
-                let pointer = Arc::clone(&self.abs_pointer);
-                let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
-                    let landing =
-                        run_abs_pointer(pointer, move |pointer| pointer.move_to(x, y)).await?;
-                    sleep(Duration::from_millis(35)).await;
-                    run_ydotool(&wheel_mousemove_args(dx, dy)).await?;
-                    Ok(landing)
-                })
-                .await;
-                let _input_guard = input_guard;
-                return Json(abs_pointer_result("scroll", result, received));
-            }
+        if let Some((x, y)) = target_point
+            && self.is_wayland_session()
+            && ydotool_backend_available().await
+            && self.ensure_abs_pointer().await
+        {
+            let pointer = Arc::clone(&self.abs_pointer);
+            let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
+                let landing =
+                    run_abs_pointer(pointer, move |pointer| pointer.move_to(x, y)).await?;
+                sleep(Duration::from_millis(35)).await;
+                run_ydotool(&wheel_mousemove_args(dx, dy)).await?;
+                Ok(landing)
+            })
+            .await;
+            let _input_guard = input_guard;
+            return Json(abs_pointer_result("scroll", result, received));
         }
-        if let Some(session) = self.cached_portal_pointer_session() {
-            let mapped_target = match (portal_target_point, target_point) {
-                (Some(point), _) => Some(Some(point)),
-                (None, Some((x, y))) => self.logical_portal_point(&session, x, y).map(Some),
-                (None, None) => Some(None),
-            };
-            let Some(portal_target_point) = mapped_target else {
-                self.clear_portal_pointer_session(&session);
-                return Json(with_notes(
-                    portal_coordinate_error("scroll", received),
-                    off_screen_note.clone(),
-                ));
-            };
-            match portal_scroll(&session, portal_target_point, direction, units).await {
-                Ok(()) => {
-                    return Json(with_notes(
-                        ActionOutput {
-                            ok: true,
-                            implemented: true,
-                            action: "scroll".to_string(),
-                            message: "Action sent through the remote desktop portal.".to_string(),
-                            received,
-                        },
-                        off_screen_note.clone(),
-                    ));
-                }
-                Err(error) => {
+        match self.cached_portal_pointer_session() {
+            Some(session) => {
+                let mapped_target = match (portal_target_point, target_point) {
+                    (Some(point), _) => Some(Some(point)),
+                    (None, Some((x, y))) => self.logical_portal_point(&session, x, y).map(Some),
+                    (None, None) => Some(None),
+                };
+                let Some(portal_target_point) = mapped_target else {
                     self.clear_portal_pointer_session(&session);
                     return Json(with_notes(
-                        portal_action_error("scroll", error, received),
+                        portal_coordinate_error("scroll", received),
                         off_screen_note.clone(),
                     ));
-                }
-            }
-        } else if self.should_prefer_portal_pointer_backend().await {
-            match self.ensure_portal_pointer_session().await {
-                Ok(Some(session)) => {
-                    if let Some(target) = window_target.as_ref() {
-                        if let Err(message) = self.focus_target_for_input(target).await {
-                            return Json(action_result("scroll", Err(message), received));
-                        }
-                    }
-                    let mapped_target = match (portal_target_point, target_point) {
-                        (Some(point), _) => Some(Some(point)),
-                        (None, Some((x, y))) => self.logical_portal_point(&session, x, y).map(Some),
-                        (None, None) => Some(None),
-                    };
-                    let Some(portal_target_point) = mapped_target else {
-                        self.clear_portal_pointer_session(&session);
+                };
+                match portal_scroll(&session, portal_target_point, direction, units).await {
+                    Ok(()) => {
                         return Json(with_notes(
-                            portal_coordinate_error("scroll", received),
+                            ActionOutput {
+                                ok: true,
+                                implemented: true,
+                                action: "scroll".to_string(),
+                                message: "Action sent through the remote desktop portal."
+                                    .to_string(),
+                                received,
+                            },
                             off_screen_note.clone(),
                         ));
-                    };
-                    match portal_scroll(&session, portal_target_point, direction, units).await {
-                        Ok(()) => {
-                            return Json(with_notes(
-                                ActionOutput {
-                                    ok: true,
-                                    implemented: true,
-                                    action: "scroll".to_string(),
-                                    message: "Action sent through the remote desktop portal."
-                                        .to_string(),
-                                    received,
-                                },
-                                off_screen_note.clone(),
-                            ));
-                        }
-                        Err(error) => {
-                            self.clear_portal_pointer_session(&session);
-                            return Json(with_notes(
-                                portal_action_error("scroll", error, received),
-                                off_screen_note.clone(),
-                            ));
-                        }
+                    }
+                    Err(error) => {
+                        self.clear_portal_pointer_session(&session);
+                        return Json(with_notes(
+                            portal_action_error("scroll", error, received),
+                            off_screen_note.clone(),
+                        ));
                     }
                 }
-                Ok(None) => {}
-                Err(error)
-                    if target_point.is_some()
-                        || env_flag_enabled("COMPUTER_USE_LINUX_FORCE_PORTAL_POINTER") =>
-                {
-                    return Json(portal_start_error("scroll", error, received));
+            }
+            _ => {
+                if self.should_prefer_portal_pointer_backend().await {
+                    match self.ensure_portal_pointer_session().await {
+                        Ok(Some(session)) => {
+                            if let Some(target) = window_target.as_ref()
+                                && let Err(message) = self.focus_target_for_input(target).await
+                            {
+                                return Json(action_result("scroll", Err(message), received));
+                            }
+                            let mapped_target = match (portal_target_point, target_point) {
+                                (Some(point), _) => Some(Some(point)),
+                                (None, Some((x, y))) => {
+                                    self.logical_portal_point(&session, x, y).map(Some)
+                                }
+                                (None, None) => Some(None),
+                            };
+                            let Some(portal_target_point) = mapped_target else {
+                                self.clear_portal_pointer_session(&session);
+                                return Json(with_notes(
+                                    portal_coordinate_error("scroll", received),
+                                    off_screen_note.clone(),
+                                ));
+                            };
+                            match portal_scroll(&session, portal_target_point, direction, units)
+                                .await
+                            {
+                                Ok(()) => {
+                                    return Json(with_notes(
+                                        ActionOutput {
+                                            ok: true,
+                                            implemented: true,
+                                            action: "scroll".to_string(),
+                                            message:
+                                                "Action sent through the remote desktop portal."
+                                                    .to_string(),
+                                            received,
+                                        },
+                                        off_screen_note.clone(),
+                                    ));
+                                }
+                                Err(error) => {
+                                    self.clear_portal_pointer_session(&session);
+                                    return Json(with_notes(
+                                        portal_action_error("scroll", error, received),
+                                        off_screen_note.clone(),
+                                    ));
+                                }
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(error)
+                            if target_point.is_some()
+                                || env_flag_enabled("COMPUTER_USE_LINUX_FORCE_PORTAL_POINTER") =>
+                        {
+                            return Json(portal_start_error("scroll", error, received));
+                        }
+                        Err(_) => {}
+                    }
                 }
-                Err(_) => {}
             }
         }
         if target_point.is_some() && self.is_wayland_session() {
@@ -2194,70 +2205,75 @@ impl ComputerUseLinux {
                 Err(error) => abs_pointer_error("drag", error, received),
             });
         }
-        if let Some(session) = self.cached_portal_pointer_session() {
-            let _ = self.capture_space_rect().await;
-            let Some((start_x, start_y)) =
-                self.logical_portal_point(&session, params.start_x, params.start_y)
-            else {
-                self.clear_portal_pointer_session(&session);
-                return Json(portal_coordinate_error("drag", received));
-            };
-            let Some((end_x, end_y)) =
-                self.logical_portal_point(&session, params.end_x, params.end_y)
-            else {
-                self.clear_portal_pointer_session(&session);
-                return Json(portal_coordinate_error("drag", received));
-            };
-            match portal_drag(&session, start_x, start_y, end_x, end_y).await {
-                Ok(()) => {
-                    return Json(ActionOutput {
-                        ok: true,
-                        implemented: true,
-                        action: "drag".to_string(),
-                        message: "Action sent through the remote desktop portal.".to_string(),
-                        received,
-                    });
-                }
-                Err(error) => {
+        match self.cached_portal_pointer_session() {
+            Some(session) => {
+                let _ = self.capture_space_rect().await;
+                let Some((start_x, start_y)) =
+                    self.logical_portal_point(&session, params.start_x, params.start_y)
+                else {
                     self.clear_portal_pointer_session(&session);
-                    return Json(portal_action_error("drag", error, received));
-                }
-            }
-        } else if self.should_prefer_portal_pointer_backend().await {
-            let _ = self.capture_space_rect().await;
-            match self.ensure_portal_pointer_session().await {
-                Ok(Some(session)) => {
-                    let Some((start_x, start_y)) =
-                        self.logical_portal_point(&session, params.start_x, params.start_y)
-                    else {
+                    return Json(portal_coordinate_error("drag", received));
+                };
+                let Some((end_x, end_y)) =
+                    self.logical_portal_point(&session, params.end_x, params.end_y)
+                else {
+                    self.clear_portal_pointer_session(&session);
+                    return Json(portal_coordinate_error("drag", received));
+                };
+                match portal_drag(&session, start_x, start_y, end_x, end_y).await {
+                    Ok(()) => {
+                        return Json(ActionOutput {
+                            ok: true,
+                            implemented: true,
+                            action: "drag".to_string(),
+                            message: "Action sent through the remote desktop portal.".to_string(),
+                            received,
+                        });
+                    }
+                    Err(error) => {
                         self.clear_portal_pointer_session(&session);
-                        return Json(portal_coordinate_error("drag", received));
-                    };
-                    let Some((end_x, end_y)) =
-                        self.logical_portal_point(&session, params.end_x, params.end_y)
-                    else {
-                        self.clear_portal_pointer_session(&session);
-                        return Json(portal_coordinate_error("drag", received));
-                    };
-                    match portal_drag(&session, start_x, start_y, end_x, end_y).await {
-                        Ok(()) => {
-                            return Json(ActionOutput {
-                                ok: true,
-                                implemented: true,
-                                action: "drag".to_string(),
-                                message: "Action sent through the remote desktop portal."
-                                    .to_string(),
-                                received,
-                            });
-                        }
-                        Err(error) => {
-                            self.clear_portal_pointer_session(&session);
-                            return Json(portal_action_error("drag", error, received));
-                        }
+                        return Json(portal_action_error("drag", error, received));
                     }
                 }
-                Ok(None) => {}
-                Err(error) => return Json(portal_start_error("drag", error, received)),
+            }
+            _ => {
+                if self.should_prefer_portal_pointer_backend().await {
+                    let _ = self.capture_space_rect().await;
+                    match self.ensure_portal_pointer_session().await {
+                        Ok(Some(session)) => {
+                            let Some((start_x, start_y)) =
+                                self.logical_portal_point(&session, params.start_x, params.start_y)
+                            else {
+                                self.clear_portal_pointer_session(&session);
+                                return Json(portal_coordinate_error("drag", received));
+                            };
+                            let Some((end_x, end_y)) =
+                                self.logical_portal_point(&session, params.end_x, params.end_y)
+                            else {
+                                self.clear_portal_pointer_session(&session);
+                                return Json(portal_coordinate_error("drag", received));
+                            };
+                            match portal_drag(&session, start_x, start_y, end_x, end_y).await {
+                                Ok(()) => {
+                                    return Json(ActionOutput {
+                                        ok: true,
+                                        implemented: true,
+                                        action: "drag".to_string(),
+                                        message: "Action sent through the remote desktop portal."
+                                            .to_string(),
+                                        received,
+                                    });
+                                }
+                                Err(error) => {
+                                    self.clear_portal_pointer_session(&session);
+                                    return Json(portal_action_error("drag", error, received));
+                                }
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(error) => return Json(portal_start_error("drag", error, received)),
+                    }
+                }
             }
         }
         if self.is_wayland_session() {
@@ -2336,8 +2352,8 @@ impl ComputerUseLinux {
         let secret = self.typing_into_secret(focus.as_ref()).await;
         self.indicator.keys(&params.key, secret).await;
         let input_guard = Arc::new(input_guard);
-        if let Some(chord) = xdotool_key_spec(&params.key) {
-            if let Some(output) = self
+        if let Some(chord) = xdotool_key_spec(&params.key)
+            && let Some(output) = self
                 .pixelflux_send(
                     "press_key",
                     crate::pixelflux::PixelfluxAction::Key { chord },
@@ -2345,9 +2361,8 @@ impl ComputerUseLinux {
                     Arc::clone(&input_guard),
                 )
                 .await
-            {
-                return Json(output);
-            }
+        {
+            return Json(output);
         }
         let input_guard = Arc::try_unwrap(input_guard)
             .expect("pixelflux fallback must not retain dispatched input");
@@ -2364,7 +2379,7 @@ impl ComputerUseLinux {
                         Err(format!("{error:#}")),
                         received,
                         focus,
-                    ))
+                    ));
                 }
             };
             match self.ensure_portal_keyboard_session().await {
@@ -2372,7 +2387,7 @@ impl ComputerUseLinux {
                     let focus = match self.focus_target_for_input(&portal_target).await {
                         Ok(focus) => focus,
                         Err(message) => {
-                            return Json(action_result("press_key", Err(message), received))
+                            return Json(action_result("press_key", Err(message), received));
                         }
                     };
                     // KDE keeps physical keycodes: its keysym path is untested
@@ -2426,37 +2441,36 @@ impl ComputerUseLinux {
         // X11: prefer xdotool/XTEST. ydotool's raw evdev scancodes get
         // re-mapped by the active XKB layout on X11, so named keys and chords
         // arrive as stray glyphs instead of real key events (issue #58).
-        if self.should_prefer_xdotool_keyboard() {
-            if let Some(spec) = xdotool_key_spec(&params.key) {
-                let xdotool_args = vec!["key".to_string(), "--clearmodifiers".to_string(), spec];
-                let ydotool_args =
-                    ydotool_key_args(key_events.clone(), !chord_modifiers.is_empty());
-                let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
-                    run_xdotool_or_fallback(Path::new("xdotool"), &xdotool_args, || {
-                        run_ydotool(&ydotool_args)
-                    })
-                    .await
+        if self.should_prefer_xdotool_keyboard()
+            && let Some(spec) = xdotool_key_spec(&params.key)
+        {
+            let xdotool_args = vec!["key".to_string(), "--clearmodifiers".to_string(), spec];
+            let ydotool_args = ydotool_key_args(key_events.clone(), !chord_modifiers.is_empty());
+            let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
+                run_xdotool_or_fallback(Path::new("xdotool"), &xdotool_args, || {
+                    run_ydotool(&ydotool_args)
                 })
-                .await;
-                let _input_guard = input_guard;
-                let used_xdotool = result
-                    .as_ref()
-                    .is_ok_and(|result| result.backend == KeyboardCommandBackend::Xdotool);
-                let mut output = action_result_with_focus(
-                    "press_key",
-                    result.map(|result| vec![result.output]),
-                    received,
-                    focus.clone(),
-                );
-                if used_xdotool {
-                    output.message = "Action sent through xdotool (X11 XTEST).".to_string();
-                }
-                if output.ok && focus.is_some() {
-                    let notes = self.input_landing_notes(focus.as_ref(), false).await;
-                    output = with_notes(output, notes);
-                }
-                return Json(output);
+                .await
+            })
+            .await;
+            let _input_guard = input_guard;
+            let used_xdotool = result
+                .as_ref()
+                .is_ok_and(|result| result.backend == KeyboardCommandBackend::Xdotool);
+            let mut output = action_result_with_focus(
+                "press_key",
+                result.map(|result| vec![result.output]),
+                received,
+                focus.clone(),
+            );
+            if used_xdotool {
+                output.message = "Action sent through xdotool (X11 XTEST).".to_string();
             }
+            if output.ok && focus.is_some() {
+                let notes = self.input_landing_notes(focus.as_ref(), false).await;
+                output = with_notes(output, notes);
+            }
+            return Json(output);
         }
         let args = ydotool_key_args(key_events, !chord_modifiers.is_empty());
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
@@ -2561,21 +2575,21 @@ impl ComputerUseLinux {
                         Err(message),
                         received,
                         focus,
-                    ))
+                    ));
                 }
             }
         } else {
             (wtype_mode, self.typing_into_secret(focus.as_ref()).await)
         };
-        if let Some(mode) = wtype_mode {
-            if let Err(message) = validate_wtype_privacy(mode, secret) {
-                return Json(action_result_with_focus(
-                    "type_text",
-                    Err(message),
-                    received,
-                    focus,
-                ));
-            }
+        if let Some(mode) = wtype_mode
+            && let Err(message) = validate_wtype_privacy(mode, secret)
+        {
+            return Json(action_result_with_focus(
+                "type_text",
+                Err(message),
+                received,
+                focus,
+            ));
         }
         self.indicator.text("type_text", &params.text, secret).await;
         let input_guard = Arc::new(input_guard);
@@ -2607,7 +2621,7 @@ impl ComputerUseLinux {
                         Err(format!("{error:#}")),
                         received,
                         focus,
-                    ))
+                    ));
                 }
             };
             match self.ensure_portal_keyboard_session().await {
@@ -2615,7 +2629,7 @@ impl ComputerUseLinux {
                     let kde_focus = match self.focus_target_for_input(&portal_target).await {
                         Ok(focus) => focus,
                         Err(message) => {
-                            return Json(action_result("type_text", Err(message), received))
+                            return Json(action_result("type_text", Err(message), received));
                         }
                     };
                     let paste_shortcut =
@@ -3064,7 +3078,7 @@ async fn execute_shell(params: RunShellParams) -> RunShellOutput {
                 requested_cwd,
                 timeout_seconds,
                 "cwd is not a directory",
-            )
+            );
         }
         Err(error) => {
             return shell_error_output(
@@ -3072,7 +3086,7 @@ async fn execute_shell(params: RunShellParams) -> RunShellOutput {
                 requested_cwd,
                 timeout_seconds,
                 format!("failed to resolve cwd: {error}"),
-            )
+            );
         }
     };
     let cwd_display = cwd.display().to_string();
@@ -4509,13 +4523,12 @@ impl ComputerUseLinux {
 
     fn clear_portal_pointer_session(&self, failed: &PortalPointerSession) {
         failed.invalidate_and_close();
-        if let Ok(mut cached) = self.portal_pointer_session.lock() {
-            if cached
+        if let Ok(mut cached) = self.portal_pointer_session.lock()
+            && cached
                 .as_ref()
                 .is_some_and(|session| session.same_session(failed))
-            {
-                *cached = None;
-            }
+        {
+            *cached = None;
         }
     }
 
@@ -4529,13 +4542,12 @@ impl ComputerUseLinux {
 
     fn clear_portal_keyboard_session(&self, failed: &PortalKeyboardSession) {
         failed.invalidate_and_close();
-        if let Ok(mut cached) = self.portal_keyboard_session.lock() {
-            if cached
+        if let Ok(mut cached) = self.portal_keyboard_session.lock()
+            && cached
                 .as_ref()
                 .is_some_and(|session| session.same_session(failed))
-            {
-                *cached = None;
-            }
+        {
+            *cached = None;
         }
     }
 
@@ -4856,10 +4868,10 @@ impl ComputerUseLinux {
                 });
             let candidates = accessibility_filter_candidates(resolved_window.as_ref());
             let mut app_filter = None;
-            if let Some(pid) = target_pid {
-                if let Ok(apps) = list_accessible_apps(200).await {
-                    app_filter = select_accessibility_object_ref(&apps, pid, &candidates);
-                }
+            if let Some(pid) = target_pid
+                && let Ok(apps) = list_accessible_apps(200).await
+            {
+                app_filter = select_accessibility_object_ref(&apps, pid, &candidates);
             }
             if app_filter.is_none() {
                 app_filter = candidates.into_iter().next();
@@ -5315,19 +5327,18 @@ impl ComputerUseLinux {
             None
         };
 
-        if let Some(target_pid) = target_pid {
-            if let Some(object_ref) = apps
+        if let Some(target_pid) = target_pid
+            && let Some(object_ref) = apps
                 .as_deref()
                 .and_then(|apps| select_accessibility_object_ref(apps, target_pid, &candidates))
-            {
-                return Some(object_ref);
-            }
+        {
+            return Some(object_ref);
         }
 
-        if let Some(app_id) = app_id {
-            if !app_id.starts_with("window:") {
-                return Some(select_accessibility_app_id_filter(apps.as_deref(), app_id));
-            }
+        if let Some(app_id) = app_id
+            && !app_id.starts_with("window:")
+        {
+            return Some(select_accessibility_app_id_filter(apps.as_deref(), app_id));
         }
 
         if candidates.is_empty() && trimmed_nonempty(params.app_id.as_deref()).is_some() {
@@ -5613,23 +5624,30 @@ impl ComputerUseLinux {
         .await;
         let result = match dispatched {
             Ok(result) => result,
-            Err(error) => return Some(ActionOutput {
-                ok: false, implemented: true, action: action.to_string(), received,
-                message: format!("pixelflux input task stopped ({error}); it may have run, so check the screen before retrying"),
-            }),
-        };
-        if let Err(error) = &result {
-            if crate::pixelflux::outcome_unknown(error) {
+            Err(error) => {
                 return Some(ActionOutput {
                     ok: false,
                     implemented: true,
                     action: action.to_string(),
-                    message: format!(
-                        "pixelflux took {action} but did not answer ({error:#}); it may have run, so check the screen before retrying"
-                    ),
                     received,
+                    message: format!(
+                        "pixelflux input task stopped ({error}); it may have run, so check the screen before retrying"
+                    ),
                 });
             }
+        };
+        if let Err(error) = &result
+            && crate::pixelflux::outcome_unknown(error)
+        {
+            return Some(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: action.to_string(),
+                message: format!(
+                    "pixelflux took {action} but did not answer ({error:#}); it may have run, so check the screen before retrying"
+                ),
+                received,
+            });
         }
         Some(pixelflux_action_output(action, result, received))
     }
@@ -5858,10 +5876,10 @@ impl ComputerUseLinux {
                             .find(|window| window.window_id == window_id)
                     });
                 let mut message = message;
-                if let Some(bounds) = window.as_ref().and_then(|window| window.bounds.as_ref()) {
-                    if let Some(note) = self.off_screen_note_for_bounds(bounds).await {
-                        message = format!("{message} {note}");
-                    }
+                if let Some(bounds) = window.as_ref().and_then(|window| window.bounds.as_ref())
+                    && let Some(note) = self.off_screen_note_for_bounds(bounds).await
+                {
+                    message = format!("{message} {note}");
                 }
                 Json(WindowGeometryOutput {
                     ok: true,
@@ -5902,10 +5920,10 @@ impl ComputerUseLinux {
                 .as_ref()
                 .and_then(|window| window.bounds.as_ref())
                 .or(focus.requested_window.bounds.as_ref());
-            if let Some(bounds) = bounds {
-                if let Some(note) = self.off_screen_note_for_bounds(bounds).await {
-                    notes.push(note);
-                }
+            if let Some(bounds) = bounds
+                && let Some(note) = self.off_screen_note_for_bounds(bounds).await
+            {
+                notes.push(note);
             }
         }
         if let Some(note) = self.focused_element_feedback(focus, expects_editable).await {
@@ -6205,12 +6223,12 @@ impl ComputerUseLinux {
                         .to_string(),
                 );
             }
-            if let Some(cached_window_id) = cached.window_id {
-                if cached_window_id != requested_id {
-                    return Err(format!(
-                        "cached element belongs to window_id {cached_window_id}, not the explicitly targeted window_id {requested_id}"
-                    ));
-                }
+            if let Some(cached_window_id) = cached.window_id
+                && cached_window_id != requested_id
+            {
+                return Err(format!(
+                    "cached element belongs to window_id {cached_window_id}, not the explicitly targeted window_id {requested_id}"
+                ));
             }
             Some(requested_id)
         } else {
@@ -6256,10 +6274,10 @@ impl ComputerUseLinux {
         &self,
         params: &ClickParams,
     ) -> std::result::Result<ClickTarget, String> {
-        if params.coordinate_space == ClickCoordinateSpace::Capture {
-            if let Some((x, y)) = params.x.zip(params.y) {
-                return Ok(ClickTarget::Coordinates(x, y));
-            }
+        if params.coordinate_space == ClickCoordinateSpace::Capture
+            && let Some((x, y)) = params.x.zip(params.y)
+        {
+            return Ok(ClickTarget::Coordinates(x, y));
         }
 
         let selector = params.selector();
@@ -6283,16 +6301,15 @@ impl ComputerUseLinux {
         // Toolkit extents are not necessarily in the pointer backend's space
         // (GTK3 X11 HiDPI, GTK4 zero-origin bounds). Ordinary activation does
         // not need a guessed scale when the target exposes its native action.
-        if is_plain_left_click(params.button.as_deref(), params.click_count) {
-            if let Some(action) =
+        if is_plain_left_click(params.button.as_deref(), params.click_count)
+            && let Some(action) =
                 primary_action(&node.actions).filter(|action| click_equivalent_action(action))
-            {
-                return Ok(ClickTarget::PrimaryAction {
-                    object_ref: node.object_ref.clone(),
-                    action_name: Some(action.name.clone()),
-                    action_index: action.index,
-                });
-            }
+        {
+            return Ok(ClickTarget::PrimaryAction {
+                object_ref: node.object_ref.clone(),
+                action_name: Some(action.name.clone()),
+                action_index: action.index,
+            });
         }
 
         if let Some(center) = node.bounds.as_ref().and_then(bounds_center) {
@@ -6645,14 +6662,14 @@ fn is_recoverable_action_query_error(error: &anyhow::Error) -> bool {
     }
 
     error.chain().any(|cause| {
-        if let Some(zbus::Error::MethodError(name, _, _)) = cause.downcast_ref::<zbus::Error>() {
-            if matches!(
+        if let Some(zbus::Error::MethodError(name, _, _)) = cause.downcast_ref::<zbus::Error>()
+            && matches!(
                 name.as_str(),
                 "org.freedesktop.DBus.Error.ServiceUnknown"
                     | "org.freedesktop.DBus.Error.NameHasNoOwner"
-            ) {
-                return true;
-            }
+            )
+        {
+            return true;
         }
         if matches!(
             cause.downcast_ref::<zbus::fdo::Error>(),
@@ -7585,19 +7602,19 @@ fn accessibility_filter_candidates(window_context: Option<&WindowInfo>) -> Vec<S
     push_candidate(&mut candidates, window.title.as_deref());
     push_candidate(&mut candidates, window.wm_class.as_deref());
 
-    if let Some(app_id) = trimmed_nonempty(window.app_id.as_deref()) {
-        if !app_id.starts_with("window:") {
-            push_candidate(&mut candidates, Some(app_id));
-            if let Some(stripped) = app_id.strip_suffix(".desktop") {
-                push_candidate(&mut candidates, Some(stripped));
-                let normalized = stripped.replace(['-', '_', '.'], " ");
-                push_candidate(&mut candidates, Some(normalized.as_str()));
-            } else {
-                let normalized = app_id.replace(['-', '_', '.'], " ");
-                push_candidate(&mut candidates, Some(normalized.as_str()));
-            }
-            push_candidate(&mut candidates, Some(crate::windows::app_id_leaf(app_id)));
+    if let Some(app_id) = trimmed_nonempty(window.app_id.as_deref())
+        && !app_id.starts_with("window:")
+    {
+        push_candidate(&mut candidates, Some(app_id));
+        if let Some(stripped) = app_id.strip_suffix(".desktop") {
+            push_candidate(&mut candidates, Some(stripped));
+            let normalized = stripped.replace(['-', '_', '.'], " ");
+            push_candidate(&mut candidates, Some(normalized.as_str()));
+        } else {
+            let normalized = app_id.replace(['-', '_', '.'], " ");
+            push_candidate(&mut candidates, Some(normalized.as_str()));
         }
+        push_candidate(&mut candidates, Some(crate::windows::app_id_leaf(app_id)));
     }
 
     candidates
@@ -8019,7 +8036,9 @@ fn portal_start_error(
         ok: false,
         implemented: true,
         action: action.to_string(),
-        message: format!("Input was not sent because the remote desktop portal could not start; input was not replayed through ydotool: {error:#}"),
+        message: format!(
+            "Input was not sent because the remote desktop portal could not start; input was not replayed through ydotool: {error:#}"
+        ),
         received,
     }
 }
@@ -8033,7 +8052,9 @@ fn abs_pointer_error(
         ok: false,
         implemented: true,
         action: action.to_string(),
-        message: format!("Absolute pointer {action} may have started before it failed; input was not replayed through another backend: {error}"),
+        message: format!(
+            "Absolute pointer {action} may have started before it failed; input was not replayed through another backend: {error}"
+        ),
         received,
     }
 }
@@ -8068,16 +8089,16 @@ fn kwin_element_click_dispatch_output(
     kwin_click: Option<PreparedKwinElementClick>,
     backend: &str,
 ) -> ActionOutput {
-    if output.ok {
-        if let Some(kwin_click) = kwin_click {
-            output.message = format!(
-                "Click dispatched through {backend} using KWin element coordinate mapping: capture {},{}; portal logical {},{}. Dispatch only: UI activation was not verified.",
-                kwin_click.point.capture.0,
-                kwin_click.point.capture.1,
-                kwin_click.point.logical.0,
-                kwin_click.point.logical.1
-            );
-        }
+    if output.ok
+        && let Some(kwin_click) = kwin_click
+    {
+        output.message = format!(
+            "Click dispatched through {backend} using KWin element coordinate mapping: capture {},{}; portal logical {},{}. Dispatch only: UI activation was not verified.",
+            kwin_click.point.capture.0,
+            kwin_click.point.capture.1,
+            kwin_click.point.logical.0,
+            kwin_click.point.logical.1
+        );
     }
     output
 }
@@ -8138,18 +8159,18 @@ fn successful_action_with_focus(
 }
 
 fn with_focus_context(mut output: ActionOutput, focus: Option<WindowFocusResult>) -> ActionOutput {
-    if output.ok {
-        if let Some(focus) = focus {
-            let verification = if focus.exact_window_focused {
-                "exact window-focus"
-            } else {
-                "app-level focus"
-            };
-            output.message = format!(
-                "{} Target window_id {} was focused with {verification} verification before input.",
-                output.message, focus.requested_window.window_id,
-            );
-        }
+    if output.ok
+        && let Some(focus) = focus
+    {
+        let verification = if focus.exact_window_focused {
+            "exact window-focus"
+        } else {
+            "app-level focus"
+        };
+        output.message = format!(
+            "{} Target window_id {} was focused with {verification} verification before input.",
+            output.message, focus.requested_window.window_id,
+        );
     }
     output
 }
@@ -8814,9 +8835,11 @@ async fn run_kde_clipboard_paste_text(
         (Ok(_), Err(restore_error)) => Ok(format!(
             "Action pasted through KDE clipboard integration. Warning: previous KDE clipboard contents could not be restored: {restore_error}"
         )),
-        (Err(error), Err(restore_error)) => Err(KdeClipboardPasteError::after_portal_input(
-            format!("{error}; previous KDE clipboard contents could not be restored: {restore_error}"),
-        )),
+        (Err(error), Err(restore_error)) => {
+            Err(KdeClipboardPasteError::after_portal_input(format!(
+                "{error}; previous KDE clipboard contents could not be restored: {restore_error}"
+            )))
+        }
     }
 }
 
@@ -9092,9 +9115,14 @@ where
     if result.backend == KeyboardCommandBackend::Xdotool {
         let guard = match guard {
             Ok(guard) => guard,
-            Err(error) => return Ok((result, Some(format!(
-                "WARNING: X11 layout-change detection was unavailable: {error}. Keyboard focus and grab detection was also unavailable. Field contents remain unverified; inspect the target before submitting or retrying."
-            )))),
+            Err(error) => {
+                return Ok((
+                    result,
+                    Some(format!(
+                        "WARNING: X11 layout-change detection was unavailable: {error}. Keyboard focus and grab detection was also unavailable. Field contents remain unverified; inspect the target before submitting or retrying."
+                    )),
+                ));
+            }
         };
         // Never replay a dispatched command, even if verification fails.
         tokio::task::spawn_blocking(move || guard.verify())
@@ -9237,7 +9265,9 @@ async fn hyprland_wtype_delivery(
     if text.chars().count() <= WTYPE_STDIN_MAX_CHARS {
         Ok(WtypeTextMode::Stdin)
     } else {
-        Err(format!("Literal text was not sent: the focused field could not be classified. Hyprland's private stdin fallback accepts at most {WTYPE_STDIN_MAX_CHARS} Unicode characters per call to avoid keymap-refresh corruption. Send smaller calls and verify each one, or enable the target's accessibility support."))
+        Err(format!(
+            "Literal text was not sent: the focused field could not be classified. Hyprland's private stdin fallback accepts at most {WTYPE_STDIN_MAX_CHARS} Unicode characters per call to avoid keymap-refresh corruption. Send smaller calls and verify each one, or enable the target's accessibility support."
+        ))
     }
 }
 
@@ -9366,10 +9396,10 @@ fn xdotool_key_spec(key: &str) -> Option<String> {
         spec.push(xdotool_modifier_name(part)?.to_string());
     }
 
-    if modifier_parts.is_empty() {
-        if let Some(bare) = xdotool_modifier_keysym(key_part) {
-            return Some(bare.to_string());
-        }
+    if modifier_parts.is_empty()
+        && let Some(bare) = xdotool_modifier_keysym(key_part)
+    {
+        return Some(bare.to_string());
     }
     spec.push(xdotool_keysym_name(key_part)?);
     Some(spec.join("+"))
@@ -9493,10 +9523,10 @@ fn key_chord(key: &str) -> Option<(Vec<u16>, u16)> {
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>();
     let (key_part, modifier_parts) = parts.split_last()?;
-    if modifier_parts.is_empty() {
-        if let Some(modifier) = modifier_keycode(key_part) {
-            return Some((Vec::new(), modifier));
-        }
+    if modifier_parts.is_empty()
+        && let Some(modifier) = modifier_keycode(key_part)
+    {
+        return Some((Vec::new(), modifier));
     }
     let mut modifiers = Vec::new();
     for part in modifier_parts {
@@ -9743,7 +9773,7 @@ fn looks_like_desktop_app(name: &str, command: &str) -> bool {
 mod tests {
     use super::*;
     use crate::atspi_tree::{AccessibilityAction, Bounds};
-    use crate::windows::{WindowBounds, GNOME_SHELL_EXTENSION_BACKEND, NIRI_BACKEND};
+    use crate::windows::{GNOME_SHELL_EXTENSION_BACKEND, NIRI_BACKEND, WindowBounds};
     use std::os::unix::fs::PermissionsExt;
 
     /// Restores an environment variable when a test ends, including on panic.
@@ -9755,13 +9785,15 @@ mod tests {
     impl EnvVarGuard {
         fn set(key: &'static str, value: &str) -> Self {
             let original = std::env::var_os(key);
-            std::env::set_var(key, value);
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { std::env::set_var(key, value) };
             Self { key, original }
         }
 
         fn unset(key: &'static str) -> Self {
             let original = std::env::var_os(key);
-            std::env::remove_var(key);
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { std::env::remove_var(key) };
             Self { key, original }
         }
     }
@@ -9769,8 +9801,10 @@ mod tests {
     impl Drop for EnvVarGuard {
         fn drop(&mut self) {
             match &self.original {
-                Some(value) => std::env::set_var(self.key, value),
-                None => std::env::remove_var(self.key),
+                // FIXME: Audit that the environment access only happens in single-threaded code.
+                Some(value) => unsafe { std::env::set_var(self.key, value) },
+                // FIXME: Audit that the environment access only happens in single-threaded code.
+                None => unsafe { std::env::remove_var(self.key) },
             }
         }
     }
@@ -9974,10 +10008,12 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
         assert_eq!(responses.len(), 3, "{responses:?}");
         assert!(responses[0].get("error").is_some(), "{:?}", responses[0]);
         assert_eq!(responses[1]["result"]["protocolVersion"], "2025-06-18");
-        assert!(!responses[2]["result"]["tools"]
-            .as_array()
-            .unwrap()
-            .is_empty());
+        assert!(
+            !responses[2]["result"]["tools"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
@@ -9993,11 +10029,13 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
         ])
         .await;
         assert_eq!(responses.len(), 2, "{responses:?}");
-        assert!(responses[0]["result"]["supportedVersions"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|version| version == "2026-07-28"));
+        assert!(
+            responses[0]["result"]["supportedVersions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|version| version == "2026-07-28")
+        );
         let listed = &responses[1]["result"];
         assert_eq!(listed["resultType"], "complete");
         assert!(listed.get("ttlMs").is_some() && listed.get("cacheScope").is_some());
@@ -10054,11 +10092,13 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
     #[test]
     fn completion_tool_is_explicitly_opt_in_and_has_side_effect_annotations() {
         let server = ComputerUseLinux::default();
-        assert!(!server
-            .router_with_completion(false)
-            .list_all()
-            .iter()
-            .any(|t| t.name == "complete_interaction"));
+        assert!(
+            !server
+                .router_with_completion(false)
+                .list_all()
+                .iter()
+                .any(|t| t.name == "complete_interaction")
+        );
         let tools = server.router_with_completion(true).list_all();
         let tool = tools
             .iter()
@@ -10204,12 +10244,14 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
         let mut button = node(3, None);
         button.role = "button".to_string();
         button.parent_index = Some(2);
-        assert!(shell_only_accessibility_tree_note(
-            &[frame.clone(), panel.clone(), menu.clone(), button.clone()],
-            true,
-            false
-        )
-        .is_some());
+        assert!(
+            shell_only_accessibility_tree_note(
+                &[frame.clone(), panel.clone(), menu.clone(), button.clone()],
+                true,
+                false
+            )
+            .is_some()
+        );
         button.parent_index = Some(1);
         assert!(
             shell_only_accessibility_tree_note(&[frame, panel, menu, button], true, false)
@@ -10257,9 +10299,11 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
                 .1
                 .is_none()
         );
-        assert!(compact_accessibility_tree_with_note(nodes, true, true)
-            .1
-            .is_none());
+        assert!(
+            compact_accessibility_tree_with_note(nodes, true, true)
+                .1
+                .is_none()
+        );
     }
 
     fn node_with_actions(
@@ -10853,7 +10897,8 @@ esac
         let cached = server.diagnostics.report(false).await;
         assert!(cached.readiness.can_build_accessibility_tree);
 
-        env::set_var("CUL_A11Y_ENABLED", "false");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { env::set_var("CUL_A11Y_ENABLED", "false") };
         let off = app_state_value(&server, params.clone()).await;
         assert_eq!(
             runs.load(Ordering::SeqCst),
@@ -10882,7 +10927,8 @@ esac
             "probe run 2"
         );
 
-        env::set_var("CUL_A11Y_ENABLED", "true");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { env::set_var("CUL_A11Y_ENABLED", "true") };
         let on = app_state_value(&server, params).await;
         assert_eq!(
             runs.load(Ordering::SeqCst),
@@ -11833,13 +11879,15 @@ esac
             )
             .unwrap();
         assert_eq!(node.object_ref, ":1.3/node");
-        assert!(backend
-            .resolve_cached_node(
-                Some(2),
-                &ElementSelector::default(),
-                ElementResolvePurpose::Action
-            )
-            .is_err());
+        assert!(
+            backend
+                .resolve_cached_node(
+                    Some(2),
+                    &ElementSelector::default(),
+                    ElementResolvePurpose::Action
+                )
+                .is_err()
+        );
     }
 
     #[test]
@@ -12689,25 +12737,31 @@ esac
             relative: Some(true),
             ..valid.clone()
         };
-        assert!(validate_click_coordinate_space(&relative)
-            .unwrap_err()
-            .contains("cannot use relative"));
+        assert!(
+            validate_click_coordinate_space(&relative)
+                .unwrap_err()
+                .contains("cannot use relative")
+        );
 
         let missing_y = ClickParams {
             y: None,
             ..valid.clone()
         };
-        assert!(validate_click_coordinate_space(&missing_y)
-            .unwrap_err()
-            .contains("both x and y"));
+        assert!(
+            validate_click_coordinate_space(&missing_y)
+                .unwrap_err()
+                .contains("both x and y")
+        );
 
         let missing_element = ClickParams {
             element_index: None,
             ..valid
         };
-        assert!(validate_click_coordinate_space(&missing_element)
-            .unwrap_err()
-            .contains("require element_index or a semantic selector"));
+        assert!(
+            validate_click_coordinate_space(&missing_element)
+                .unwrap_err()
+                .contains("require element_index or a semantic selector")
+        );
 
         let raw_capture = ClickParams {
             x: Some(1148),
@@ -12837,12 +12891,14 @@ esac
             ] {
                 node.bounds = bounds;
                 backend.cache_nodes(&[node.clone()]);
-                assert!(backend
-                    .resolve_click_target(&ClickParams {
-                        element_index: Some(7),
-                        ..Default::default()
-                    })
-                    .is_err());
+                assert!(
+                    backend
+                        .resolve_click_target(&ClickParams {
+                            element_index: Some(7),
+                            ..Default::default()
+                        })
+                        .is_err()
+                );
             }
         }
     }
@@ -13805,14 +13861,18 @@ esac
     #[test]
     fn wtype_text_validation_counts_bytes_and_rejects_nul() {
         assert!(validate_wtype_text(&"x".repeat(WTYPE_MAX_TEXT_BYTES)).is_ok());
-        assert!(validate_wtype_text(&"x".repeat(WTYPE_MAX_TEXT_BYTES + 1))
-            .unwrap_err()
-            .contains("not sent"));
+        assert!(
+            validate_wtype_text(&"x".repeat(WTYPE_MAX_TEXT_BYTES + 1))
+                .unwrap_err()
+                .contains("not sent")
+        );
         // The argument limit counts UTF-8 bytes, not Unicode scalar values.
         assert!(validate_wtype_text(&"ş".repeat(WTYPE_MAX_TEXT_BYTES / 2 + 1)).is_err());
-        assert!(validate_wtype_text("valid prefix\0suffix")
-            .unwrap_err()
-            .contains("not sent"));
+        assert!(
+            validate_wtype_text("valid prefix\0suffix")
+                .unwrap_err()
+                .contains("not sent")
+        );
         assert!(validate_wtype_text("").is_ok());
     }
 
@@ -14362,10 +14422,12 @@ esac
             .await;
             assert!(!output.ok);
             assert!(output.stdout.is_empty());
-            assert!(output
-                .error
-                .unwrap()
-                .contains("shell execution is disabled"));
+            assert!(
+                output
+                    .error
+                    .unwrap()
+                    .contains("shell execution is disabled")
+            );
         }
 
         let _serial = SHELL_ENV_TEST_LOCK.lock().await;
@@ -14447,9 +14509,11 @@ esac
     fn shell_audit_digest_is_stable_and_does_not_echo_command_text() {
         let digest = shell_command_sha256("printf secret");
         assert_eq!(digest.len(), 64);
-        assert!(digest
-            .chars()
-            .all(|character| character.is_ascii_hexdigit()));
+        assert!(
+            digest
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        );
         assert!(!digest.contains("secret"));
         assert_eq!(digest, shell_command_sha256("printf secret"));
     }
@@ -14500,7 +14564,7 @@ mod accessibility_tree_note_tests {
 
 #[cfg(test)]
 mod focus_probe_feedback_tests {
-    use super::{focus_probe_feedback, FocusProbe, FocusedElementSummary};
+    use super::{FocusProbe, FocusedElementSummary, focus_probe_feedback};
 
     #[test]
     fn only_a_complete_empty_search_warns() {
@@ -14743,12 +14807,14 @@ mod action_recovery_tests {
                 NodeDetail::Compact,
             )
             .await;
-        assert!(backend
-            .last_snapshot
-            .lock()
-            .unwrap()
-            .recovery_scope
-            .is_none());
+        assert!(
+            backend
+                .last_snapshot
+                .lock()
+                .unwrap()
+                .recovery_scope
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -15845,14 +15911,18 @@ mod node_target_scope_tests {
         let node = cached_node(2, ":1.9/org/a11y/atspi/accessible/42");
         backend.cache_snapshot(std::slice::from_ref(&node), Some(2_690_664));
 
-        assert!(backend
-            .check_node_target(&node, &ElementOwnerTarget::pid(Some(2_690_664)))
-            .await
-            .is_ok());
-        assert!(backend
-            .check_node_target(&node, &ElementOwnerTarget::pid(None))
-            .await
-            .is_ok());
+        assert!(
+            backend
+                .check_node_target(&node, &ElementOwnerTarget::pid(Some(2_690_664)))
+                .await
+                .is_ok()
+        );
+        assert!(
+            backend
+                .check_node_target(&node, &ElementOwnerTarget::pid(None))
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -15863,10 +15933,12 @@ mod node_target_scope_tests {
         let node = cached_node(2, ":1.9999/org/a11y/atspi/accessible/42");
         backend.cache_snapshot(std::slice::from_ref(&node), None);
 
-        assert!(backend
-            .check_node_target(&node, &ElementOwnerTarget::pid(Some(1)))
-            .await
-            .is_ok());
+        assert!(
+            backend
+                .check_node_target(&node, &ElementOwnerTarget::pid(Some(1)))
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -15914,10 +15986,12 @@ mod node_target_scope_tests {
             !writer.is_finished(),
             "snapshot publication must wait for input"
         );
-        assert!(backend
-            .check_node_target(&checked_node, &ElementOwnerTarget::pid(Some(10)))
-            .await
-            .is_ok());
+        assert!(
+            backend
+                .check_node_target(&checked_node, &ElementOwnerTarget::pid(Some(10)))
+                .await
+                .is_ok()
+        );
         let params = ClickParams {
             element_index: Some(2),
             ..Default::default()
@@ -16148,10 +16222,12 @@ mod node_target_scope_tests {
                 .unwrap_err(),
             node_window_mismatch_message(2, 20, 10)
         );
-        assert!(backend
-            .check_node_target(&node, &pidless_owner(20))
-            .await
-            .is_ok());
+        assert!(
+            backend
+                .check_node_target(&node, &pidless_owner(20))
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -16254,10 +16330,12 @@ mod post_action_capture_tests {
         assert_eq!(tree_only.screenshot_scope(), None);
         assert_eq!(tree_only.include_tree, Some(true));
 
-        assert!(serde_json::from_value::<PostActionCaptureParams>(
-            serde_json::json!({"screenshot_after": "invalid"})
-        )
-        .is_err());
+        assert!(
+            serde_json::from_value::<PostActionCaptureParams>(
+                serde_json::json!({"screenshot_after": "invalid"})
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -16573,7 +16651,8 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
 
         // 2. Screenshot failure after a successful action must keep ok=true.
         std::fs::write(&log_path, "").unwrap();
-        std::env::set_var("CUL_POST_ACTION_FAIL_SCREENSHOT", "1");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("CUL_POST_ACTION_FAIL_SCREENSHOT", "1") };
         let click_params: ClickParams = serde_json::from_value(serde_json::json!({
             "x": 120,
             "y": 240,
@@ -16581,20 +16660,25 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
         }))
         .unwrap();
         let result = server.click(Parameters(click_params)).await.unwrap();
-        std::env::remove_var("CUL_POST_ACTION_FAIL_SCREENSHOT");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("CUL_POST_ACTION_FAIL_SCREENSHOT") };
         assert_ne!(result.is_error, Some(true));
         assert_eq!(result.content.len(), 1);
         let structured = result.structured_content.expect("structured content");
         assert_eq!(structured["ok"], serde_json::json!(true));
         assert!(structured.get("screenshot").is_none());
-        assert!(structured["screenshot_error"]
-            .as_str()
-            .unwrap()
-            .contains("gnome-screenshot"));
-        assert!(structured["message"]
-            .as_str()
-            .unwrap()
-            .contains("Post-action screenshot failed:"));
+        assert!(
+            structured["screenshot_error"]
+                .as_str()
+                .unwrap()
+                .contains("gnome-screenshot")
+        );
+        assert!(
+            structured["message"]
+                .as_str()
+                .unwrap()
+                .contains("Post-action screenshot failed:")
+        );
         server.diagnostics.report(false).await;
         assert_eq!(
             diagnostics_probes.load(std::sync::atomic::Ordering::SeqCst),
@@ -16624,7 +16708,8 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
         );
 
         // 4. activate_window preserves post-action observation notes in message.
-        std::env::set_var("CUL_POST_ACTION_FAIL_SCREENSHOT", "1");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("CUL_POST_ACTION_FAIL_SCREENSHOT", "1") };
         let activate_capture: PostActionCaptureParams =
             serde_json::from_value(serde_json::json!({"screenshot_after": "screen"})).unwrap();
         let activate_result = server
@@ -16643,15 +16728,18 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
             )
             .await
             .unwrap();
-        std::env::remove_var("CUL_POST_ACTION_FAIL_SCREENSHOT");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("CUL_POST_ACTION_FAIL_SCREENSHOT") };
         let activate_structured = activate_result
             .structured_content
             .expect("structured activate_window content");
         assert_eq!(activate_structured["ok"], serde_json::json!(true));
-        assert!(activate_structured["message"]
-            .as_str()
-            .unwrap()
-            .contains("Post-action screenshot failed:"));
+        assert!(
+            activate_structured["message"]
+                .as_str()
+                .unwrap()
+                .contains("Post-action screenshot failed:")
+        );
 
         // 5. A window capture that falls back to the activated window when the
         // window list fails still makes the next readiness read probe again.
@@ -16712,7 +16800,8 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
         // readiness read probe again. Input commands fail or are missing, no
         // window backend answers, and no observation has cached an element
         // index.
-        std::env::set_var("CUL_POST_ACTION_FAIL_INPUT", "9");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("CUL_POST_ACTION_FAIL_INPUT", "9") };
         let failed_actions: Vec<(&str, ToolCall<'_>)> = vec![
             (
                 "click",
@@ -16779,13 +16868,15 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
                 "a failed {tool} makes the next readiness read probe again"
             );
         }
-        std::env::remove_var("CUL_POST_ACTION_FAIL_INPUT");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("CUL_POST_ACTION_FAIL_INPUT") };
 
         // 7. A resize that lands but whose geometry re-query finds no window
         // backend stays ok and still makes the next readiness read probe again.
         let wmctrl_state = log_path.with_file_name("wmctrl.state");
         std::fs::write(&wmctrl_state, "").unwrap();
-        std::env::set_var("CUL_WMCTRL_STATE", &wmctrl_state);
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("CUL_WMCTRL_STATE", &wmctrl_state) };
         let (result, probed) = readiness_probed_after(
             &server,
             &diagnostics_probes,
@@ -16794,7 +16885,8 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
             )),
         )
         .await;
-        std::env::remove_var("CUL_WMCTRL_STATE");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("CUL_WMCTRL_STATE") };
         let structured = result.structured_content.unwrap();
         assert_eq!(structured["ok"], true, "{structured}");
         assert!(structured["window"].is_null(), "{structured}");
@@ -16834,7 +16926,8 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
         let cached = server.diagnostics.report(false).await;
         assert!(!cached.readiness.can_query_windows);
         std::fs::write(&wmctrl_state, "").unwrap();
-        std::env::set_var("CUL_WMCTRL_STATE", &wmctrl_state);
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("CUL_WMCTRL_STATE", &wmctrl_state) };
         let probes = diagnostics_probes.load(Ordering::SeqCst);
         let window_7 = serde_json::json!({"window_id": 7, "include_screenshot": false});
         let state = super::tests::app_state_value(&server, window_7.clone()).await;
@@ -16845,7 +16938,8 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
             format!("probe run {}", probes + 1)
         );
         let next = super::tests::app_state_value(&server, window_7).await;
-        std::env::remove_var("CUL_WMCTRL_STATE");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("CUL_WMCTRL_STATE") };
         assert_eq!(next["window_context"]["window_id"], 7, "{next}");
         assert_eq!(
             next["readiness"]["recommended_next_step"],
@@ -16878,13 +16972,15 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
             );
             server.diagnostics.report(false).await;
             std::fs::write(&wmctrl_state, "").unwrap();
-            std::env::set_var("CUL_WMCTRL_STATE", &wmctrl_state);
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { std::env::set_var("CUL_WMCTRL_STATE", &wmctrl_state) };
             let state = super::tests::app_state_value(
                 &server,
                 serde_json::json!({"window_id": 7, "include_screenshot": false}),
             )
             .await;
-            std::env::remove_var("CUL_WMCTRL_STATE");
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { std::env::remove_var("CUL_WMCTRL_STATE") };
             assert_eq!(
                 state["window_context"]["backend"],
                 crate::windows::X11_BACKEND,
@@ -16948,22 +17044,28 @@ echo "0x00000007 0 0 0 0 $size fixture.Fixture host Fixture"
             "a successful press_key keeps the cached diagnostics"
         );
         assert_eq!(result.structured_content.as_ref().unwrap()["ok"], true);
-        assert!(!result.structured_content.unwrap()["message"]
-            .as_str()
-            .unwrap()
-            .contains("WARNING: X11 keyboard layout"));
+        assert!(
+            !result.structured_content.unwrap()["message"]
+                .as_str()
+                .unwrap()
+                .contains("WARNING: X11 keyboard layout")
+        );
 
         // A launched failure stays an error and must not claim dispatch.
-        std::env::set_var("CUL_POST_ACTION_FAIL_INPUT", "9");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("CUL_POST_ACTION_FAIL_INPUT", "9") };
         let params = serde_json::from_value(serde_json::json!({"key": "Escape"})).unwrap();
         let result = server.press_key(Parameters(params)).await.unwrap();
-        std::env::remove_var("CUL_POST_ACTION_FAIL_INPUT");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var("CUL_POST_ACTION_FAIL_INPUT") };
         let structured = result.structured_content.unwrap();
         assert_eq!(structured["ok"], false);
-        assert!(!structured["message"]
-            .as_str()
-            .unwrap()
-            .contains("WARNING: X11 keyboard layout"));
+        assert!(
+            !structured["message"]
+                .as_str()
+                .unwrap()
+                .contains("WARNING: X11 keyboard layout")
+        );
 
         std::fs::write(&log_path, "").unwrap();
         let set_value_capture: PostActionCaptureParams = serde_json::from_value(
@@ -17152,9 +17254,11 @@ mod tree_spill_server_tests {
         }
         assert_eq!(seen, (0..300).collect::<Vec<_>>());
         assert!(tree_page(&tree, NodeDetail::Full, 999).nodes.is_empty());
-        assert!(tree_page(&[], NodeDetail::Full, 0)
-            .message
-            .contains("call get_app_state"));
+        assert!(
+            tree_page(&[], NodeDetail::Full, 0)
+                .message
+                .contains("call get_app_state")
+        );
     }
 
     #[test]
@@ -17233,11 +17337,15 @@ mod pixelflux_routing_tests {
             return;
         }
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        std::env::set_var(
-            "PIXELFLUX_CU",
-            listener.local_addr().unwrap().port().to_string(),
-        );
-        std::env::set_var("PIXELFLUX_CU_TOKEN", "fixture-token");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe {
+            std::env::set_var(
+                "PIXELFLUX_CU",
+                listener.local_addr().unwrap().port().to_string(),
+            )
+        };
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("PIXELFLUX_CU_TOKEN", "fixture-token") };
         let (sent, started) = tokio::sync::oneshot::channel();
         let (finish, finished) = tokio::sync::oneshot::channel();
         let peer = tokio::spawn(async move {
@@ -17398,10 +17506,12 @@ mod pixelflux_routing_tests {
                     .lock_owned()
                     .await,
             );
-            assert!(super::ComputerUseLinux::default()
-                .try_pixelflux_click(10, 20, false, None, Some(button), count, None, guard)
-                .await
-                .is_none());
+            assert!(
+                super::ComputerUseLinux::default()
+                    .try_pixelflux_click(10, 20, false, None, Some(button), count, None, guard)
+                    .await
+                    .is_none()
+            );
         }
         if std::env::var("CUL_PIXELFLUX_CHILD").as_deref() == Ok("scroll") {
             let params = serde_json::from_value(serde_json::json!({"direction": "down"})).unwrap();
@@ -17470,7 +17580,9 @@ mod pixelflux_routing_tests {
         let (message, recorded) = click_after_probe(
             "server::pixelflux_routing_tests::pixelflux_failure_after_send_is_not_replayed",
             "500",
-            Some("HTTP/1.1 500 X\r\nContent-Length: 14\r\nConnection: close\r\n\r\n{\"error\":\"no\"}"),
+            Some(
+                "HTTP/1.1 500 X\r\nContent-Length: 14\r\nConnection: close\r\n\r\n{\"error\":\"no\"}",
+            ),
         );
         assert!(message.contains("pixelflux did not accept"), "{message}");
         assert!(!message.contains("secret"), "{message}");
@@ -17501,8 +17613,10 @@ mod pixelflux_routing_tests {
                 .click(rmcp::handler::server::wrapper::Parameters(params))
                 .await
                 .unwrap();
-            std::env::set_var("PIXELFLUX_CU", "1");
-            std::env::set_var("PIXELFLUX_CU_TOKEN", "secret");
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { std::env::set_var("PIXELFLUX_CU", "1") };
+            // FIXME: Audit that the environment access only happens in single-threaded code.
+            unsafe { std::env::set_var("PIXELFLUX_CU_TOKEN", "secret") };
             let params = serde_json::from_value(serde_json::json!({"x": 10, "y": 20})).unwrap();
             let with = server
                 .click(rmcp::handler::server::wrapper::Parameters(params))

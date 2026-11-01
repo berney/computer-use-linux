@@ -30,8 +30,8 @@ use std::{
 };
 
 use computer_use_linux::indicator::{
-    capture_lock_path, socket_path, Capture, IndicatorEvent, CAPTURE_REPLY_EMPTY,
-    CAPTURE_REPLY_SHOWN, GLIDE, HIDE_SETTLE,
+    CAPTURE_REPLY_EMPTY, CAPTURE_REPLY_SHOWN, Capture, GLIDE, HIDE_SETTLE, IndicatorEvent,
+    capture_lock_path, socket_path,
 };
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState, Region},
@@ -40,28 +40,28 @@ use smithay_client_toolkit::{
     output::{OutputHandler, OutputState},
     reexports::{
         calloop::{
+            EventLoop, Interest, LoopHandle, Mode, PostAction,
             generic::Generic,
             timer::{TimeoutAction, Timer},
-            EventLoop, Interest, LoopHandle, Mode, PostAction,
         },
         calloop_wayland_source::WaylandSource,
     },
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     shell::{
+        WaylandSurface,
         wlr_layer::{
             Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
             LayerSurfaceConfigure,
         },
-        WaylandSurface,
     },
-    shm::{slot::SlotPool, Shm, ShmHandler},
+    shm::{Shm, ShmHandler, slot::SlotPool},
 };
 use tiny_skia::{Color, Pixmap};
 use wayland_client::{
+    Connection, QueueHandle,
     globals::registry_queue_init,
     protocol::{wl_output::WlOutput, wl_shm, wl_surface::WlSurface},
-    Connection, QueueHandle,
 };
 use wayland_protocols::wp::{
     fractional_scale::v1::client::{
@@ -71,7 +71,7 @@ use wayland_protocols::wp::{
     viewporter::client::{wp_viewport::WpViewport, wp_viewporter::WpViewporter},
 };
 
-use draw::{Edge, CURSOR_SIZE};
+use draw::{CURSOR_SIZE, Edge};
 
 /// Idle time before fading out.
 const IDLE_BEFORE_FADE: Duration = Duration::from_secs(8);
@@ -634,14 +634,14 @@ impl App {
     }
 
     fn tick(&mut self, qh: &QueueHandle<Self>) {
-        if let Some(glide) = &self.glide {
-            if glide.progress() >= 1.0 {
-                if glide.press {
-                    self.pulse = Some((Instant::now(), glide.to));
-                }
-                self.cursor = Some(glide.to);
-                self.glide = None;
+        if let Some(glide) = &self.glide
+            && glide.progress() >= 1.0
+        {
+            if glide.press {
+                self.pulse = Some((Instant::now(), glide.to));
             }
+            self.cursor = Some(glide.to);
+            self.glide = None;
         }
         if self
             .pulse
@@ -1265,12 +1265,12 @@ impl Dispatch2<WpFractionalScaleV1, App> for ScaleOf {
         _: &Connection,
         _: &QueueHandle<App>,
     ) {
-        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            if let Some(index) = app.panel_for_surface(&self.0) {
-                app.panels[index].scale = scale as f32 / 120.0;
-                app.panels[index].drawn = None;
-                app.render(index);
-            }
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event
+            && let Some(index) = app.panel_for_surface(&self.0)
+        {
+            app.panels[index].scale = scale as f32 / 120.0;
+            app.panels[index].drawn = None;
+            app.render(index);
         }
     }
 }

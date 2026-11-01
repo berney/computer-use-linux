@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::{
     io::{self, Read},
     os::{
@@ -784,9 +784,11 @@ mod tests {
 
         let error = output_blocking(&mut command, "run blocking process tree").unwrap_err();
 
-        assert!(error
-            .to_string()
-            .contains("timed out after 2000 ms while trying to run blocking process tree"));
+        assert!(
+            error
+                .to_string()
+                .contains("timed out after 2000 ms while trying to run blocking process tree")
+        );
         assert!(started.elapsed() < Duration::from_secs(4));
         let leader = fs::read_to_string(&leader_path)
             .expect("leader should record its pid")
@@ -899,9 +901,11 @@ mod tests {
         )
         .unwrap_err();
 
-        assert!(error
-            .to_string()
-            .contains("timed out after 100 ms while trying to run quiet leader"));
+        assert!(
+            error
+                .to_string()
+                .contains("timed out after 100 ms while trying to run quiet leader")
+        );
         assert!(started.elapsed() >= Duration::from_millis(100));
         assert!(started.elapsed() < Duration::from_secs(4));
         let leader = wait_for_pid(&leader_path).await;
@@ -934,10 +938,10 @@ mod tests {
 
     async fn wait_for_pid(path: &PathBuf) -> u32 {
         for _ in 0..100 {
-            if let Ok(value) = fs::read_to_string(path) {
-                if let Ok(pid) = value.parse() {
-                    return pid;
-                }
+            if let Ok(value) = fs::read_to_string(path)
+                && let Ok(pid) = value.parse()
+            {
+                return pid;
             }
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
