@@ -5,7 +5,7 @@ pub(crate) async fn run_from_env() -> Result<()> {
     diagnostics::hydrate_session_bus_env();
 
     match std::env::args().nth(1).as_deref() {
-        Some("mcp") => server::serve_mcp().await,
+        Some("mcp") => server::serve_mcp(mcp_listen_addr()?).await,
         Some("guard-accessibility") => crate::accessibility_guard::run().await,
         Some("doctor") => {
             let report = diagnostics::doctor_report();
@@ -161,8 +161,30 @@ fn abs_test_report(
 fn print_help() {
     println!("guard-accessibility: explicit foreground accessibility hold-open; stop with Ctrl-C or SIGTERM before disabling accessibility.\n");
     println!(
-        "computer-use-linux\n\nUsage:\n  computer-use-linux mcp\n  computer-use-linux doctor\n  computer-use-linux setup\n  computer-use-linux setup-window-targeting\n  computer-use-linux apps\n  computer-use-linux state [APP_NAME]\n  computer-use-linux screenshot\n  computer-use-linux windows"
+        "computer-use-linux\n\nUsage:\n  computer-use-linux mcp [--listen ADDR:PORT]\n  computer-use-linux doctor\n  computer-use-linux setup\n  computer-use-linux setup-window-targeting\n  computer-use-linux apps\n  computer-use-linux state [APP_NAME]\n  computer-use-linux screenshot\n  computer-use-linux windows"
     );
+}
+
+fn mcp_listen_addr() -> Result<Option<std::net::SocketAddr>> {
+    let mut args = std::env::args().skip(2);
+    match args.next().as_deref() {
+        None => Ok(None),
+        Some("--listen") => {
+            let value = args.next().context("--listen needs an address")?;
+            let addr = value
+                .parse()
+                .with_context(|| format!("invalid listen address {value}"))?;
+            let token = std::env::var("COMPUTER_USE_LINUX_MCP_TOKEN").unwrap_or_default();
+            if token.trim().is_empty() {
+                anyhow::bail!("COMPUTER_USE_LINUX_MCP_TOKEN is required with --listen");
+            }
+            if args.next().is_some() {
+                anyhow::bail!("unexpected argument after --listen");
+            }
+            Ok(Some(addr))
+        }
+        Some(other) => anyhow::bail!("unknown mcp argument {other}"),
+    }
 }
 
 #[cfg(test)]
