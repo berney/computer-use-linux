@@ -22,8 +22,8 @@ Building more than one checkout (git worktrees, other clones)?
 Give each its own builder, which gives it its own cargo cache:
 
 ```sh
-docker buildx create --name cul-integration --driver docker-container
-docker bake --builder cul-integration
+docker buildx create --name cul-mod --driver docker-container
+docker bake --builder cul-mod
 ```
 
 Checkouts that share a builder share its cargo `target/` cache.
