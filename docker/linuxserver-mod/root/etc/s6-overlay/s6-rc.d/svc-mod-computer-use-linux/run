@@ -1,7 +1,13 @@
 #!/usr/bin/with-contenv bash
 
-if [ -n "${COMPUTER_USE_LINUX_MCP_DISABLED}" ] || [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN}" ]; then
-  echo "computer-use-linux: COMPUTER_USE_LINUX_MCP_TOKEN is not set; MCP server disabled"
+if [ -n "${COMPUTER_USE_LINUX_MCP_DISABLED}" ] || { [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN}" ] && [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN_FILE}" ]; }; then
+  echo "computer-use-linux: neither COMPUTER_USE_LINUX_MCP_TOKEN nor COMPUTER_USE_LINUX_MCP_TOKEN_FILE is set; MCP server disabled"
+  s6-svc -Od .
+  exit 0
+fi
+# The listener refuses to start beside run_shell; stop here instead of restart-looping.
+if [ "${COMPUTER_USE_LINUX_ENABLE_SHELL}" = "1" ]; then
+  echo "computer-use-linux: COMPUTER_USE_LINUX_ENABLE_SHELL=1 is refused with the HTTP listener; MCP server disabled"
   s6-svc -Od .
   exit 0
 fi
@@ -91,5 +97,12 @@ fi
   kill $$ 2>/dev/null || true
 ) &
 
+# A non-loopback bind needs at least one Host name; default to this container's hostname.
+IFS=', ' read -r -a hosts <<< "${COMPUTER_USE_LINUX_MCP_ALLOWED_HOSTS:-${HOSTNAME}}"
+allowed=()
+for host in "${hosts[@]}"; do
+  allowed+=(--allowed-host "${host}")
+done
+
 exec s6-setuidgid abc /usr/local/bin/computer-use-linux mcp \
-  --listen "${COMPUTER_USE_LINUX_MCP_LISTEN:-0.0.0.0:5200}"
+  --listen "${COMPUTER_USE_LINUX_MCP_LISTEN:-0.0.0.0:5200}" "${allowed[@]}"

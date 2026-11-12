@@ -24,8 +24,9 @@ if [ -z "${DBUS_SESSION_BUS_ADDRESS}" ] && [ ! -s /run/s6/container_environment/
 fi
 
 
-if [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN}" ] && [ ! -s /run/s6/container_environment/COMPUTER_USE_LINUX_MCP_TOKEN ]; then
-  echo "computer-use-linux: COMPUTER_USE_LINUX_MCP_TOKEN is not set; MCP server disabled"
+if [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN}" ] && [ ! -s /run/s6/container_environment/COMPUTER_USE_LINUX_MCP_TOKEN ] &&
+  [ -z "${COMPUTER_USE_LINUX_MCP_TOKEN_FILE}" ] && [ ! -s /run/s6/container_environment/COMPUTER_USE_LINUX_MCP_TOKEN_FILE ]; then
+  echo "computer-use-linux: neither COMPUTER_USE_LINUX_MCP_TOKEN nor COMPUTER_USE_LINUX_MCP_TOKEN_FILE is set; MCP server disabled"
   mkdir -p /run/s6/container_environment
   printf '1' > /run/s6/container_environment/COMPUTER_USE_LINUX_MCP_DISABLED
 fi

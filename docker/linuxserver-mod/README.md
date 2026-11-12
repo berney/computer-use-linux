@@ -79,13 +79,19 @@ COPY --link --from=computer-use-linux-mod / /
 
 ## Environment
 
-| Variable                        | Required | Default                                       |
-|---------------------------------|----------|-----------------------------------------------|
-| `COMPUTER_USE_LINUX_MCP_TOKEN`  | yes      | unset disables the MCP server                 |
-| `COMPUTER_USE_LINUX_MCP_LISTEN` | no       | `0.0.0.0:5200`                                |
-| `COMPUTER_USE_LINUX_INDICATOR`  | no       | `0`. Set `1` to show the on-screen indicator  |
+| Variable                               | Required          | Default                                                       |
+|----------------------------------------|-------------------|---------------------------------------------------------------|
+| `COMPUTER_USE_LINUX_MCP_TOKEN_FILE`    | this or the token | unset; path to a file holding the bearer token (preferred)    |
+| `COMPUTER_USE_LINUX_MCP_TOKEN`         | this or the file  | unset; with neither set the MCP server is disabled            |
+| `COMPUTER_USE_LINUX_MCP_LISTEN`        | no                | `0.0.0.0:5200`                                                |
+| `COMPUTER_USE_LINUX_MCP_ALLOWED_HOSTS` | no                | the container's hostname; comma- or space-separated hostnames |
+| `COMPUTER_USE_LINUX_INDICATOR`         | no                | `0`. Set `1` to show the on-screen indicator                  |
 
 Clients send `Authorization: Bearer <token>` to `http://127.0.0.1:5200/mcp`.
+`localhost`, `127.0.0.1` and `::1` are always allowed as the `Host`; add the names other clients use, such as a Kubernetes Service name, to `COMPUTER_USE_LINUX_MCP_ALLOWED_HOSTS`.
+Prefer the token file: a token in `COMPUTER_USE_LINUX_MCP_TOKEN` stays readable in `/proc/<pid>/environ` while the server runs.
+Over HTTP, `click`, `scroll`, `set_value` and `perform_action` calls that pick an element by `element_index` or selector, and every `get_tree_page` call, must pass the `snapshot_id` from the caller's latest `get_app_state`.
+`COMPUTER_USE_LINUX_ENABLE_SHELL=1` disables the MCP server, because the listener refuses to serve `run_shell`.
 
 ## Notes
 
