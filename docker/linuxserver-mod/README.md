@@ -18,17 +18,8 @@ docker bake linuxserver-mod-tar   # docker/linuxserver-mod/computer-use-linux.ta
 
 The image is `linux/amd64` only.
 
-Building more than one checkout (git worktrees, other clones)?
-Give each its own builder, which gives it its own cargo cache:
-
-```sh
-docker buildx create --name cul-mod --driver docker-container
-docker bake --builder cul-mod
-```
-
-Checkouts that share a builder share its cargo `target/` cache.
-Cargo decides what to rebuild from file times, so it can skip recompiling and ship the binary built from the other checkout.
-`docker bake --no-cache` rebuilds everything from scratch.
+Checkouts built on one builder share its cargo `target/` cache, and cargo decides what to rebuild from file times, so a second checkout can ship the first one's binary.
+Build only one checkout per builder, or create another with `docker buildx create --driver docker-container` and pass it as `--builder`.
 
 ## Use it
 
